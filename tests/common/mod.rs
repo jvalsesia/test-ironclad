@@ -25,13 +25,16 @@ use nix::unistd::Pid;
 use sqlx::PgPool;
 use sqlx::postgres::PgConnectOptions;
 use task_api::http::{AppState, RouterOptions, build_router};
-use task_api::infrastructure::db::PgDiagnosticsProbe;
+use task_api::infrastructure::db::{PgDiagnosticsProbe, PgTaskRepository};
 use tower::ServiceExt;
 
 /// Builds the real router over `pool`, with the diagnostic routes mounted
 /// when `test_routes` is true.
 pub fn test_router(pool: PgPool, test_routes: bool) -> Router {
-    let state = AppState::new(Arc::new(PgDiagnosticsProbe::new(pool)));
+    let state = AppState::new(
+        Arc::new(PgDiagnosticsProbe::new(pool.clone())),
+        Arc::new(PgTaskRepository::new(pool)),
+    );
     build_router(state, RouterOptions { test_routes })
 }
 
