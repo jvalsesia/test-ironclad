@@ -1,2 +1,8 @@
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Rust build output
+/target
+
+# Local environment overrides (keep .env.example and .env.test)
+.env
