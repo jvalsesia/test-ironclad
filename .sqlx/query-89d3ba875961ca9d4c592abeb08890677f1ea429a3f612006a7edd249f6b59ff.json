@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT column_name::text AS \"name!\",\n                  data_type::text AS \"data_type!\",\n                  character_maximum_length AS \"max_len\",\n                  is_nullable::text AS \"nullable!\"\n           FROM information_schema.columns\n           WHERE table_schema = 'public' AND table_name = 'tasks'\n           ORDER BY ordinal_position",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "data_type!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "max_len",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "information_schema.columns",
+            "name": "character_maximum_length"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "nullable!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null,
+      true,
+      null
+    ]
+  },
+  "hash": "89d3ba875961ca9d4c592abeb08890677f1ea429a3f612006a7edd249f6b59ff"
+}

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE _sqlx_migrations SET checksum = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6d295be041ed44030cc7658a4f15dac6307d6abca437cd7b8555f976b784d5d5"
+}

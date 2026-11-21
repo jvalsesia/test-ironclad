@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tasks (title, priority) VALUES ('t', 'urgent')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "df847c33c4b5a06417ded1b340e9815d914b90a9323ccd21e8be86f96ae022f7"
+}

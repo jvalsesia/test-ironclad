@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tasks (title, description) VALUES ('t', $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ba132e1215964b7d9d5e357f42348f3b319108141f3e2f89b859e9dc5c8e727f"
+}

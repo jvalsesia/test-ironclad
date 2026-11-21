@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT 1 / $1::int4 AS \"quotient!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "quotient!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "699c9f7472bdd279ea7c9c072cbfdb8703a1edbae6de09c7708f880e098b5b82"
+}

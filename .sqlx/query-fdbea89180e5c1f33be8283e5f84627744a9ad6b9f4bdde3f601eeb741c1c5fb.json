@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tasks (title, status) VALUES ('t', 'archived')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "fdbea89180e5c1f33be8283e5f84627744a9ad6b9f4bdde3f601eeb741c1c5fb"
+}

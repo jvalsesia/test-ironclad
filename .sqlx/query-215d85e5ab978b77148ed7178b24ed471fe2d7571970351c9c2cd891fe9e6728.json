@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT column_name::text AS \"name!\", column_default::text AS \"default\"\n           FROM information_schema.columns\n           WHERE table_schema = 'public' AND table_name = 'tasks'\n           ORDER BY ordinal_position",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "default",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "215d85e5ab978b77148ed7178b24ed471fe2d7571970351c9c2cd891fe9e6728"
+}

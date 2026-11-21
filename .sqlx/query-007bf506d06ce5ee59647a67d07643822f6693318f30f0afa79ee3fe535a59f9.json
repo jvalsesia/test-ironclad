@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT a.attname::text AS \"name!\"\n           FROM pg_index i\n           JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY (i.indkey)\n           WHERE i.indrelid = 'public.tasks'::regclass AND i.indisprimary",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "007bf506d06ce5ee59647a67d07643822f6693318f30f0afa79ee3fe535a59f9"
+}
