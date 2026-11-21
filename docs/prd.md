@@ -139,7 +139,7 @@ Both personas are technical and work mostly from a terminal, an HTTP client (cur
 ### F01. Project Foundation and Database Setup
 
 **Capabilities:**
-- **Stack:** Rust stable ≥ 1.85 (edition 2024), tokio, axum 0.8, sqlx 0.8 (features: `postgres`, `runtime-tokio`, `tls-rustls`, `uuid`, `chrono`, `migrate`, `macros`), serde, thiserror, PostgreSQL 16.
+- **Stack:** Rust stable ≥ 1.100 (edition 2024), tokio, axum 0.8.9, sqlx 0.9.1 (features: `postgres`, `runtime-tokio`, `tls-rustls`, `uuid`, `chrono`, `migrate`, `macros`), serde, thiserror, PostgreSQL 16.
 - **Layered structure** (clean architecture): `domain` (task entity, value objects, validation, domain errors), `application` (use cases and a repository trait), `infrastructure` (sqlx repository, row mapping, migrations, DB pool), `http` (routes, handlers, DTOs, error-to-response mapping), and a composition root in `main.rs`. Domain code has no dependency on axum or sqlx.
 - **Configuration** via environment variables (a `.env` file is loaded if present):
   - `DATABASE_URL` — required; no default.
