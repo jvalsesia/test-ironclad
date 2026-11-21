@@ -1,8 +1,10 @@
 //! Composition root. Wires configuration, database, router and listener.
 //!
-//! Startup order: `.env` → logging → configuration → database connection
+//! Startup order: `.env` → configuration → logging → database connection
 //! (5 attempts) → migrations → bind → serve until SIGTERM/SIGINT → drain →
 //! close the pool. Every startup failure is logged and exits with code 1.
+//! A configuration error is printed as plain text because the configured
+//! subscriber does not exist yet.
 
 use std::net::SocketAddr;
 use std::process::ExitCode;
@@ -15,21 +17,12 @@ use task_api::http::{AppState, RouterOptions, build_router};
 use task_api::infrastructure::db::{
     DbSettings, PgDiagnosticsProbe, connect_with_retry, run_migrations,
 };
+use task_api::infrastructure::logging;
 use tokio::net::TcpListener;
 use tracing::{error, info, warn};
 
 /// Upper bound on closing the pool, so a stuck connection cannot delay exit.
 const POOL_CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
-
-/// Minimal stdout subscriber so startup and shutdown messages are visible.
-/// F02 replaces this with the configurable subscriber.
-fn init_logging() {
-    tracing_subscriber::fmt()
-        .with_writer(std::io::stdout)
-        .with_ansi(false)
-        .with_max_level(tracing::Level::INFO)
-        .init();
-}
 
 /// Runs the service. Failures are logged where they happen; the `Err(())`
 /// only selects the exit code.
@@ -38,7 +31,10 @@ async fn run() -> Result<(), ()> {
     let _ = dotenvy::dotenv();
 
     let config = Config::from_env().map_err(|err| {
-        error!("configuration error: {err}");
+        logging::report_startup_error(&format!("configuration error: {err}"));
+    })?;
+    logging::init(&config.log).map_err(|err| {
+        logging::report_startup_error(&err);
     })?;
 
     let settings = DbSettings {
@@ -95,7 +91,6 @@ async fn run() -> Result<(), ()> {
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    init_logging();
     match run().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(()) => ExitCode::from(1),

@@ -5,11 +5,13 @@ use std::net::IpAddr;
 use std::time::Duration;
 
 use thiserror::Error;
+use tracing_subscriber::EnvFilter;
 
 const DEFAULT_HOST: &str = "0.0.0.0";
 const DEFAULT_PORT: u32 = 8080;
 const DEFAULT_MAX_CONNECTIONS: u32 = 10;
 const DEFAULT_ACQUIRE_TIMEOUT_SECS: u32 = 5;
+const DEFAULT_LOG_LEVEL: &str = "info";
 
 /// A configuration problem. `Display` always starts with the variable name.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -28,6 +30,32 @@ impl ConfigError {
     }
 }
 
+/// Log output rendering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LogFormat {
+    /// One JSON object per line.
+    #[default]
+    Json,
+    /// Human-readable single lines.
+    Pretty,
+}
+
+/// Logging settings. `level` is an `EnvFilter` directive, already validated.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogConfig {
+    pub format: LogFormat,
+    pub level: String,
+}
+
+impl Default for LogConfig {
+    fn default() -> Self {
+        Self {
+            format: LogFormat::Json,
+            level: DEFAULT_LOG_LEVEL.to_owned(),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct Config {
     pub database_url: String,
@@ -36,6 +64,7 @@ pub struct Config {
     pub database_max_connections: u32,
     pub database_acquire_timeout: Duration,
     pub enable_test_routes: bool,
+    pub log: LogConfig,
 }
 
 // The connection string may embed a password, so it is never printed.
@@ -48,6 +77,7 @@ impl fmt::Debug for Config {
             .field("database_max_connections", &self.database_max_connections)
             .field("database_acquire_timeout", &self.database_acquire_timeout)
             .field("enable_test_routes", &self.enable_test_routes)
+            .field("log", &self.log)
             .finish()
     }
 }
@@ -105,6 +135,32 @@ impl Config {
             }
         };
 
+        let format = match get("LOG_FORMAT").as_deref().map(str::trim) {
+            None | Some("json") => LogFormat::Json,
+            Some("pretty") => LogFormat::Pretty,
+            Some(other) => {
+                return Err(ConfigError::new(
+                    "LOG_FORMAT",
+                    format!("must be \"json\" or \"pretty\" (got \"{other}\")"),
+                ));
+            }
+        };
+        let level = match get("LOG_LEVEL") {
+            None => DEFAULT_LOG_LEVEL.to_owned(),
+            Some(raw) => {
+                let directive = raw.trim().to_owned();
+                EnvFilter::try_new(&directive).map_err(|err| {
+                    ConfigError::new(
+                        "LOG_LEVEL",
+                        format!(
+                            "must be a valid log filter directive (got \"{directive}\"): {err}"
+                        ),
+                    )
+                })?;
+                directive
+            }
+        };
+
         Ok(Self {
             database_url,
             host,
@@ -113,6 +169,7 @@ impl Config {
             database_max_connections,
             database_acquire_timeout: Duration::from_secs(u64::from(acquire_secs)),
             enable_test_routes,
+            log: LogConfig { format, level },
         })
     }
 }
@@ -231,6 +288,51 @@ mod tests {
         assert!(config_with(&[URL, ("PORT", "65535")]).is_ok());
         assert!(config_with(&[URL, ("DATABASE_MAX_CONNECTIONS", "100")]).is_ok());
         assert!(config_with(&[URL, ("DATABASE_ACQUIRE_TIMEOUT_SECS", "300")]).is_ok());
+    }
+
+    #[test]
+    fn log_defaults() {
+        let cfg = config_with(&[URL]).unwrap();
+        assert_eq!(cfg.log.format, LogFormat::Json);
+        assert_eq!(cfg.log.level, "info");
+    }
+
+    #[test]
+    fn log_format_values() {
+        let json = config_with(&[URL, ("LOG_FORMAT", "json")]).unwrap();
+        assert_eq!(json.log.format, LogFormat::Json);
+        let pretty = config_with(&[URL, ("LOG_FORMAT", "pretty")]).unwrap();
+        assert_eq!(pretty.log.format, LogFormat::Pretty);
+    }
+
+    #[test]
+    fn log_format_rejects_other_values() {
+        for value in ["xml", "JSON", "text"] {
+            let err = config_with(&[URL, ("LOG_FORMAT", value)]).unwrap_err();
+            assert_eq!(err.variable, "LOG_FORMAT", "value {value:?}");
+            assert!(err.to_string().starts_with("LOG_FORMAT must be"), "{err}");
+        }
+    }
+
+    #[test]
+    fn log_level_accepts_directives() {
+        for value in ["warn", "debug", "info,sqlx=warn"] {
+            let cfg = config_with(&[URL, ("LOG_LEVEL", value)]).unwrap();
+            assert_eq!(cfg.log.level, value);
+        }
+    }
+
+    #[test]
+    fn log_level_rejects_invalid_directive() {
+        let err = config_with(&[URL, ("LOG_LEVEL", "info,sqlx=loud")]).unwrap_err();
+        assert_eq!(err.variable, "LOG_LEVEL");
+        assert!(err.to_string().starts_with("LOG_LEVEL"), "{err}");
+    }
+
+    #[test]
+    fn empty_log_variables_use_defaults() {
+        let cfg = config_with(&[URL, ("LOG_FORMAT", ""), ("LOG_LEVEL", "  ")]).unwrap();
+        assert_eq!(cfg.log, LogConfig::default());
     }
 
     #[test]
