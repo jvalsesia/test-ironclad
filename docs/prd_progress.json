@@ -8,13 +8,13 @@
       "priority": 1,
       "wave": 1,
       "dependencies": [],
-      "status": "pending",
+      "status": "done",
       "cycles": 0,
       "failure_reason": null,
-      "report_path": null,
-      "started_at": null,
-      "updated_at": "2026-11-20T21:06:07Z",
-      "completed_at": null
+      "report_path": "docs/F01-project-foundation-and-database-setup/eval-report-2026-11-21T18-11-00Z.md",
+      "started_at": "2026-11-21T17:21:08Z",
+      "updated_at": "2026-11-21T18:19:57Z",
+      "completed_at": "2026-11-21T18:19:57Z"
     },
     "F02": {
       "name": "Structured Logging and Request IDs",
