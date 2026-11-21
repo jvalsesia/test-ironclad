@@ -379,7 +379,7 @@ Both personas are technical and work mostly from a terminal, an HTTP client (cur
     - `depends_on: db: condition: service_healthy`
     - `restart: unless-stopped`
 - **Multi-stage `Dockerfile`:**
-  - Builder stage on `rust:1.85` (or newer stable), compiling with `SQLX_OFFLINE=true` using the committed `.sqlx/` metadata.
+  - Builder stage on `rust:1.100` (or newer stable), compiling with `SQLX_OFFLINE=true` using the committed `.sqlx/` metadata.
   - Runtime stage on `debian:bookworm-slim`, running as a non-root user.
   - Final image < 150 MB.
 - **`.env.example`** documents every environment variable from F01 and F02 with its default.
