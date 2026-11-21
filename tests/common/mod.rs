@@ -268,3 +268,37 @@ pub fn spawn_with(env: &[(String, String)]) -> ServiceProcess {
     let borrowed: Vec<(&str, &str)> = env.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
     ServiceProcess::spawn(&borrowed)
 }
+
+/// A `tasks` row read directly with SQL, outside the service.
+#[derive(Debug)]
+pub struct StoredTask {
+    pub id: uuid::Uuid,
+    pub title: String,
+    pub description: Option<String>,
+    pub status: String,
+    pub priority: String,
+    pub due_date: Option<chrono::NaiveDate>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Number of rows currently in `tasks`.
+pub async fn count_tasks(pool: &PgPool) -> i64 {
+    sqlx::query_scalar!("SELECT COUNT(*) AS \"count!\" FROM tasks")
+        .fetch_one(pool)
+        .await
+        .unwrap()
+}
+
+/// The stored row with `id`, if any.
+pub async fn stored_task(pool: &PgPool, id: uuid::Uuid) -> Option<StoredTask> {
+    sqlx::query_as!(
+        StoredTask,
+        "SELECT id, title, description, status, priority, due_date, created_at, updated_at \
+         FROM tasks WHERE id = $1",
+        id
+    )
+    .fetch_optional(pool)
+    .await
+    .unwrap()
+}
