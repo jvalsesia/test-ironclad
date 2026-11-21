@@ -53,12 +53,12 @@
       "dependencies": [
         "F01"
       ],
-      "status": "pending",
+      "status": "implementing",
       "cycles": 0,
       "failure_reason": null,
       "report_path": null,
-      "started_at": null,
-      "updated_at": "2026-11-20T21:06:07Z",
+      "started_at": "2026-11-21T21:37:54Z",
+      "updated_at": "2026-11-21T21:37:54Z",
       "completed_at": null
     },
     "F05": {
