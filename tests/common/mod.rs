@@ -265,3 +265,122 @@ pub fn spawn_with(env: &[(String, String)]) -> ServiceProcess {
     let borrowed: Vec<(&str, &str)> = env.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
     ServiceProcess::spawn(&borrowed)
 }
+
+// ---- request ID and log assertions (F02) ----------------------------------
+
+/// Whether `value` parses as a UUID of version 4.
+pub fn uuid_v4(value: &str) -> bool {
+    uuid::Uuid::parse_str(value).is_ok_and(|id| id.get_version_num() == 4)
+}
+
+/// Asserts that `value` parses as a UUID of version 4.
+pub fn assert_uuid_v4(value: &str) {
+    assert!(uuid_v4(value), "not a UUID v4: {value:?}");
+}
+
+/// The `X-Request-Id` header of an in-process reply.
+pub fn request_id_of(reply: &Reply) -> String {
+    reply
+        .headers
+        .get("x-request-id")
+        .map(|v| v.to_str().unwrap().to_owned())
+        .unwrap_or_default()
+}
+
+/// A blocking raw HTTP/1.1 response.
+#[derive(Debug)]
+pub struct RawReply {
+    pub status: u16,
+    /// Header names are lower-cased.
+    pub headers: Vec<(String, String)>,
+    pub body: String,
+}
+
+impl RawReply {
+    pub fn header(&self, name: &str) -> Option<&str> {
+        let name = name.to_ascii_lowercase();
+        self.headers
+            .iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, value)| value.as_str())
+    }
+}
+
+/// Sends one request over a fresh TCP connection (`Connection: close`) and
+/// reads the whole response.
+pub fn raw_http(
+    port: u16,
+    method: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: &str,
+) -> RawReply {
+    use std::io::{Read, Write};
+
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    let mut request = format!(
+        "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nContent-Length: {}\r\n",
+        body.len()
+    );
+    for (name, value) in headers {
+        request.push_str(&format!("{name}: {value}\r\n"));
+    }
+    request.push_str("\r\n");
+    request.push_str(body);
+    stream.write_all(request.as_bytes()).unwrap();
+
+    let mut raw = Vec::new();
+    stream.read_to_end(&mut raw).unwrap();
+    let text = String::from_utf8_lossy(&raw).into_owned();
+    let (head, rest) = text.split_once("\r\n\r\n").unwrap_or((text.as_str(), ""));
+    let mut lines = head.lines();
+    let status = lines
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|code| code.parse().ok())
+        .unwrap_or(0);
+    let headers = lines
+        .filter_map(|line| line.split_once(':'))
+        .map(|(key, value)| (key.trim().to_ascii_lowercase(), value.trim().to_owned()))
+        .collect();
+    RawReply {
+        status,
+        headers,
+        body: rest.to_owned(),
+    }
+}
+
+/// Every output line that parses as a JSON object.
+pub fn json_lines(lines: &[String]) -> Vec<serde_json::Value> {
+    lines
+        .iter()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter(serde_json::Value::is_object)
+        .collect()
+}
+
+/// JSON completion lines (objects with `latency_ms`) for `request_id`.
+pub fn completion_lines(lines: &[String], request_id: &str) -> Vec<serde_json::Value> {
+    json_lines(lines)
+        .into_iter()
+        .filter(|line| line.get("latency_ms").is_some())
+        .filter(|line| line.get("request_id").and_then(|v| v.as_str()) == Some(request_id))
+        .collect()
+}
+
+impl ServiceProcess {
+    /// Waits until a completion line for `request_id` is captured.
+    pub fn wait_for_completion(&self, request_id: &str, timeout: Duration) -> bool {
+        let deadline = Instant::now() + timeout;
+        while Instant::now() < deadline {
+            if !completion_lines(&self.lines(), request_id).is_empty() {
+                return true;
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+        false
+    }
+}
