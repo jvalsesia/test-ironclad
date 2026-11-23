@@ -2,6 +2,7 @@
 
 pub mod diagnostics_probe;
 pub mod errors;
+pub mod health;
 
 pub use diagnostics_probe::DiagnosticsProbe;
 pub use errors::AppError;

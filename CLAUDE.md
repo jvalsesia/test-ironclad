@@ -7,7 +7,7 @@ Single-tenant REST API for managing tasks. Rust + axum + sqlx + PostgreSQL. No a
 - Per-feature docs: `docs/F<ID>-<kebab-name>/{spec.md,plan.md,contract.md}` (+ `eval-report-<ts>.md` from the evaluator)
 - Developer how-to (run, test, env vars): `README.md`
 
-**Status:** F01 (project foundation) is implemented and evaluated `done`. F09 (Docker Compose environment) is implemented. The other features are not started; build them wave by wave (see Workflow).
+**Status:** F01 (project foundation) is implemented and evaluated `done`. F03 (health check) is implemented and evaluated `done` (`GET /health`; it reuses `DiagnosticsProbe::ping` under a 2 s timeout in `src/application/health.rs`). F09 (Docker Compose environment) is implemented. The other features (F02, F04–F08, F10) are not all merged yet; build them wave by wave (see Workflow).
 
 ## Stack
 

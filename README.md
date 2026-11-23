@@ -92,6 +92,29 @@ Every error response has the same JSON shape:
 {"error":{"code":"not_found","message":"Route not found","details":[]}}
 ```
 
+## Health check
+
+`GET /health` runs `SELECT 1` against the database (2 s timeout) on every
+request. Both responses carry `Cache-Control: no-store`; the 503 body is the
+health payload, not the uniform error body.
+
+```bash
+curl -i http://localhost:8080/health
+```
+
+```json
+{"status":"ok","database":"up","version":"0.1.0"}
+```
+
+When the database fails or does not answer within 2 s the status is `503`:
+
+```json
+{"status":"degraded","database":"down","version":"0.1.0"}
+```
+
+The service recovers without a restart once the database accepts connections
+again. Other methods on `/health` return the uniform `405`.
+
 ## Run the tests
 
 The tests need a running PostgreSQL and the variables from `.env.test`
