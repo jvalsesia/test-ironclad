@@ -120,6 +120,48 @@ Response `201` with `Location: /tasks/{id}`:
 Errors: `400 invalid_json`, `413 payload_too_large`, `415 unsupported_media_type`,
 `422 validation_error` (one `details` entry per invalid field), `503 service_unavailable`.
 
+### `PATCH /tasks/{id}`
+
+Partially updates a task and returns the full task (`200`, no `Location`).
+`{id}` must be a 36-character hyphenated UUID. Body (`Content-Type:
+application/json`, at most 65,536 bytes) is a JSON object with at least one
+of these fields:
+
+| Field | Absent | `null` | Value |
+|-------|--------|--------|-------|
+| `title` | unchanged | `422 cannot be null` | trimmed, 1-200 characters |
+| `description` | unchanged | cleared | trimmed, at most 5000 characters; blank clears |
+| `status` | unchanged | `422 cannot be null` | `todo`, `in_progress`, `done` |
+| `priority` | unchanged | `422 cannot be null` | `low`, `medium`, `high` |
+| `due_date` | unchanged | cleared | `YYYY-MM-DD`, a real calendar date |
+
+Unknown fields (including `id`, `created_at`, `updated_at`) are ignored.
+Every successful update moves `updated_at` forward by at least one
+millisecond (even when values do not change); `created_at` never changes.
+Nothing is written on any error.
+
+```bash
+curl -i -X PATCH localhost:8080/tasks/3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60 \
+  -H 'Content-Type: application/json' -d '{"status":"done"}'
+# 200 {"id":"3f2b…","title":"Write PRD",…,"status":"done",…,"updated_at":"2026-11-23T09:30:12.456Z"}
+
+curl -X PATCH localhost:8080/tasks/3f2b… -H 'Content-Type: application/json' \
+  -d '{"description":null,"due_date":null}'
+# 200 with "description":null and "due_date":null
+
+curl -X PATCH localhost:8080/tasks/3f2b… -H 'Content-Type: application/json' -d '{}'
+# 422 {"error":{"code":"validation_error","message":"At least one updatable field must be provided","details":[]}}
+
+curl -X PATCH localhost:8080/tasks/3f2b… -H 'Content-Type: application/json' -d '{"title":null}'
+# 422 {"error":{"code":"validation_error","message":"Request validation failed","details":[{"field":"title","message":"cannot be null"}]}}
+```
+
+Errors are checked in this order: `413 payload_too_large` (declared length),
+`400 invalid_id` (`Task id must be a valid UUID`), `415 unsupported_media_type`
+/ `400 invalid_json` (malformed JSON, non-object body, or a wrongly typed field),
+`422 validation_error`, `404 not_found` (`Task <id> not found`). Database
+unavailability returns `503 service_unavailable`.
+
 ## Health check
 
 `GET /health` runs `SELECT 1` against the database (2 s timeout) on every
