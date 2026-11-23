@@ -24,6 +24,9 @@ impl FieldError {
 pub enum DomainError {
     #[error("validation failed for {} field(s)", .0.len())]
     Validation(Vec<FieldError>),
+    /// An update named no updatable field.
+    #[error("at least one updatable field must be provided")]
+    NoChanges,
 }
 
 #[cfg(test)]
@@ -37,5 +40,13 @@ mod tests {
             FieldError::new("priority", "must be one of: low, medium, high"),
         ]);
         assert_eq!(err.to_string(), "validation failed for 2 field(s)");
+    }
+
+    #[test]
+    fn no_changes_has_a_message() {
+        assert_eq!(
+            DomainError::NoChanges.to_string(),
+            "at least one updatable field must be provided"
+        );
     }
 }
