@@ -7,7 +7,7 @@ Single-tenant REST API for managing tasks. Rust + axum + sqlx + PostgreSQL. No a
 - Per-feature docs: `docs/F<ID>-<kebab-name>/{spec.md,plan.md,contract.md}` (+ `eval-report-<ts>.md` from the evaluator)
 - Developer how-to (run, test, env vars): `README.md`
 
-**Status:** F01 (project foundation) is implemented and evaluated `done`. F02 (structured logging and request IDs) is implemented and evaluated `done`. F03 (health check) is implemented and evaluated `done` (`GET /health`; it reuses `DiagnosticsProbe::ping` under a 2 s timeout in `src/application/health.rs`). F04 (create task: `POST /tasks`, domain task model, `TaskRepository` with all five operations) is implemented and evaluated `done`. F09 (Docker Compose environment) is implemented. The other features are not started or not yet merged; build them wave by wave (see Workflow).
+**Status:** F01 (foundation), F02 (structured logging and request IDs), F03 (health check: `GET /health`, reuses `DiagnosticsProbe::ping` under a 2 s timeout in `src/application/health.rs`), F04 (create task: `POST /tasks`, domain task model, `TaskRepository` with all five operations) and F09 (Docker Compose environment) are implemented, evaluated `done` and merged. F05–F08 (wave 3) and F10 (wave 4) are not started; build them wave by wave (see Workflow).
 
 ## Stack
 
@@ -86,6 +86,8 @@ SQLX_OFFLINE=true cargo build
 
 Features are built wave by wave per PRD §8 (Execution Waves) using the ironclad skills:
 `/ironclad:spec-writer` → `/ironclad:implement-feature` → `/ironclad:evaluator` (or `/ironclad:implement-and-evaluate`, and `-tmux` for a whole wave).
-Foundation features (F01, F02) must be implemented sequentially before the rest. Next up: wave 2 (F04, F02, F03, F09).
+Foundation features (F01, F02) must be implemented sequentially before the rest; both are merged. Next up: wave 3 (F05, F06, F07, F08).
+
+Parallel features (`/ironclad:implement-and-evaluate-tmux`) all edit the same shared files, so expect merge conflicts after the first PR lands: the `**Status:**` line above, `README.md` sections, `.env.example`, `src/application/mod.rs`, `src/http/router.rs` (route merges), `tests/common/mod.rs`, `Cargo.toml` features and `docs/prd_progress.json`. Resolve by keeping both sides, then run the quality gates on the merged tree and merge PRs one at a time. Tell each team to `/exit` after its PR is opened, or the wave never sees it finish.
 
 Open item: the PRD's F01 AC says an over-long title is rejected "by a CHECK constraint", but `VARCHAR(200)` rejects it first (22001). The F01 contract asserts 22001; decide whether to change the column to `TEXT` or reword the AC.
