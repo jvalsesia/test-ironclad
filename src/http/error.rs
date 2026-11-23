@@ -9,6 +9,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use tracing::{error, warn};
+use utoipa::ToSchema;
 
 use crate::application::AppError;
 use crate::domain::shared::FieldError;
@@ -24,7 +25,7 @@ pub const MSG_UNAVAILABLE: &str = "Database temporarily unavailable, please retr
 pub const MSG_INTERNAL: &str = "An unexpected error occurred";
 
 /// Stable machine-readable error codes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     InvalidJson,
@@ -55,7 +56,8 @@ impl ErrorCode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// One invalid input field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct ErrorDetail {
     pub field: String,
     pub message: String,
@@ -79,15 +81,23 @@ impl From<FieldError> for ErrorDetail {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-struct ErrorBody {
+/// Error code, message and per-field details.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+pub struct ErrorBody {
+    #[schema(inline)]
     code: ErrorCode,
+    /// Human-readable message
     message: String,
+    /// Invalid fields; empty when the error is not about specific fields
     details: Vec<ErrorDetail>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-struct ErrorEnvelope {
+/// The uniform error body, published in the OpenAPI document as
+/// `ErrorResponse`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[schema(as = ErrorResponse, description = "Uniform error body of every non-2xx response")]
+pub struct ErrorEnvelope {
+    #[schema(inline)]
     error: ErrorBody,
 }
 

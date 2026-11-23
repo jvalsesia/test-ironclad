@@ -7,15 +7,22 @@ use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use serde::Serialize;
+use utoipa::ToSchema;
 
+use super::openapi::schemas::{DatabaseState, HealthState};
 use super::state::AppState;
 use crate::application::health::{CheckHealth, HEALTH_TIMEOUT, HealthStatus};
 
 /// Body of both the 200 and the 503 response (not the uniform error body).
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
+#[schema(description = "Service and database health")]
 pub struct HealthResponse {
+    #[schema(value_type = HealthState, inline)]
     pub status: &'static str,
+    #[schema(value_type = DatabaseState, inline)]
     pub database: &'static str,
+    /// Service version
+    #[schema(value_type = String)]
     pub version: &'static str,
 }
 

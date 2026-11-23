@@ -4,6 +4,7 @@ pub mod error;
 pub mod extract;
 pub mod health;
 pub mod middleware;
+pub mod openapi;
 pub mod router;
 pub mod server;
 pub mod state;
