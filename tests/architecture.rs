@@ -133,3 +133,71 @@ fn manifest_pins_the_mandated_stack() {
         );
     }
 }
+
+/// Non-comment lines of the layer that mention `utoipa` at all.
+fn lines_mentioning(layer: &str, word: &str) -> Vec<String> {
+    let mut offenders = Vec::new();
+    for file in rust_files(&root().join(layer)) {
+        for (number, line) in fs::read_to_string(&file).unwrap().lines().enumerate() {
+            let code = line.trim_start();
+            if !code.starts_with("//") && code.contains(word) {
+                offenders.push(format!(
+                    "{}:{}: {}",
+                    file.display(),
+                    number + 1,
+                    line.trim()
+                ));
+            }
+        }
+    }
+    offenders
+}
+
+#[test]
+fn domain_and_application_do_not_reference_utoipa() {
+    for layer in ["src/domain", "src/application"] {
+        let offenders = lines_mentioning(layer, "utoipa");
+        assert!(offenders.is_empty(), "{offenders:#?}");
+    }
+}
+
+/// Production routes must be registered through `utoipa_axum::routes!` (an
+/// `OpenApiRouter`), so every served route is documented in
+/// `/openapi.json`. Plain registrations are allowed only in the diagnostic
+/// test routes and in the documentation routes themselves. Comment lines
+/// are skipped and each file is read up to its first `#[cfg(test)]` (unit
+/// tests build plain routers).
+#[test]
+fn production_routes_are_registered_through_routes_macro() {
+    let forbidden = [".route(", ".route_service(", ".nest(", ".nest_service("];
+    let http = root().join("src/http");
+    let mut offenders = Vec::new();
+    for file in rust_files(&http) {
+        let relative = file.strip_prefix(&http).unwrap();
+        if relative == Path::new("test_routes.rs") || relative.starts_with("openapi") {
+            continue;
+        }
+        for (number, line) in fs::read_to_string(&file).unwrap().lines().enumerate() {
+            let code = line.trim_start();
+            if code.starts_with("#[cfg(test)]") {
+                break;
+            }
+            if code.starts_with("//") {
+                continue;
+            }
+            if forbidden.iter().any(|call| code.contains(call)) {
+                offenders.push(format!(
+                    "{}:{}: {}",
+                    file.display(),
+                    number + 1,
+                    line.trim()
+                ));
+            }
+        }
+    }
+    assert!(
+        offenders.is_empty(),
+        "routes registered outside utoipa_axum::routes! are missing from /openapi.json; \
+         annotate the handler with #[utoipa::path] and register it with routes!: {offenders:#?}"
+    );
+}
