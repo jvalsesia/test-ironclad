@@ -10,8 +10,10 @@ use tower_http::catch_panic::CatchPanicLayer;
 use tracing::error;
 
 use super::error::ApiError;
+use super::health;
 use super::middleware::{MAX_BODY_BYTES, enforce_body_limit, request_context};
 use super::state::AppState;
+use super::tasks;
 use super::test_routes;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -25,7 +27,7 @@ pub struct RouterOptions {
 /// limit → route / fallback. The request context is outermost so every
 /// response, including panics and early rejections, is covered.
 pub fn build_router(state: AppState, options: RouterOptions) -> Router {
-    let mut router = Router::new();
+    let mut router = Router::new().merge(health::routes()).merge(tasks::routes());
     if options.test_routes {
         router = router.merge(test_routes::routes());
     }

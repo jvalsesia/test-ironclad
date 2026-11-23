@@ -15,7 +15,7 @@ use task_api::Config;
 use task_api::http::server::{SHUTDOWN_GRACE, serve, shutdown_signal};
 use task_api::http::{AppState, RouterOptions, build_router};
 use task_api::infrastructure::db::{
-    DbSettings, PgDiagnosticsProbe, connect_with_retry, run_migrations,
+    DbSettings, PgDiagnosticsProbe, PgTaskRepository, connect_with_retry, run_migrations,
 };
 use task_api::infrastructure::logging;
 use tokio::net::TcpListener;
@@ -56,7 +56,10 @@ async fn run() -> Result<(), ()> {
     if config.enable_test_routes {
         warn!("diagnostic /__test/* routes are enabled");
     }
-    let state = AppState::new(Arc::new(PgDiagnosticsProbe::new(pool.clone())));
+    let state = AppState::new(
+        Arc::new(PgDiagnosticsProbe::new(pool.clone())),
+        Arc::new(PgTaskRepository::new(pool.clone())),
+    );
     let router = build_router(
         state,
         RouterOptions {

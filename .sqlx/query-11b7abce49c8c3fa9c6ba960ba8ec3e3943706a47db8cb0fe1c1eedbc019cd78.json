@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) AS \"count!\" FROM tasks WHERE ($1::text[] IS NULL OR status = ANY($1)) AND ($2::text[] IS NULL OR priority = ANY($2))",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "11b7abce49c8c3fa9c6ba960ba8ec3e3943706a47db8cb0fe1c1eedbc019cd78"
+}

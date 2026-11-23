@@ -25,6 +25,31 @@ docker run -d --name task-api-pg -p 5432:5432 \
   postgres:16-alpine
 ```
 
+## Docker
+
+Docker Engine with Compose v2+ runs the whole stack. Host ports **5432**
+(PostgreSQL) and **8080** (API) must be free.
+
+```bash
+docker compose up --build   # build the api image, start db, wait for healthy, start api
+docker compose up db        # only PostgreSQL on localhost:5432 (for cargo run / cargo test)
+docker compose down         # stop and remove containers; keep the pgdata volume
+docker compose down -v      # also delete the pgdata volume (wipes all data)
+```
+
+The `api` image (`task-api:local`) is built offline from the committed `.sqlx/`
+metadata, runs as a non-root user and is under 150 MB. The stack ignores `.env`;
+containers use the explicit `environment:` entries in `docker-compose.yml`.
+
+Run the tests against the compose database (it has no `tasks` table for
+compile-time query checking, hence offline mode):
+
+```bash
+docker compose up -d db
+export DATABASE_URL=postgres://tasks:tasks@localhost:5432/tasks
+SQLX_OFFLINE=true cargo test
+```
+
 ## Configuration
 
 All configuration comes from environment variables. A `.env` file in the
@@ -66,6 +91,57 @@ Every error response has the same JSON shape:
 ```json
 {"error":{"code":"not_found","message":"Route not found","details":[]}}
 ```
+
+## API
+
+### `POST /tasks`
+
+Creates a task. Body (`Content-Type: application/json`, at most 65,536 bytes):
+
+| Field | Rules |
+|-------|-------|
+| `title` | required, trimmed, 1-200 characters |
+| `description` | optional, trimmed, at most 5000 characters; blank becomes `null` |
+| `status` | optional, `todo` (default), `in_progress`, `done` |
+| `priority` | optional, `low`, `medium` (default), `high` |
+| `due_date` | optional, `YYYY-MM-DD`, a real calendar date |
+
+```bash
+curl -i -X POST localhost:8080/tasks -H 'Content-Type: application/json' \
+  -d '{"title":"Write PRD","priority":"high","due_date":"2026-12-01"}'
+```
+
+Response `201` with `Location: /tasks/{id}`:
+
+```json
+{"id":"3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60","title":"Write PRD","description":null,"status":"todo","priority":"high","due_date":"2026-12-01","created_at":"2026-11-21T18:11:00.123Z","updated_at":"2026-11-21T18:11:00.123Z"}
+```
+
+Errors: `400 invalid_json`, `413 payload_too_large`, `415 unsupported_media_type`,
+`422 validation_error` (one `details` entry per invalid field), `503 service_unavailable`.
+
+## Health check
+
+`GET /health` runs `SELECT 1` against the database (2 s timeout) on every
+request. Both responses carry `Cache-Control: no-store`; the 503 body is the
+health payload, not the uniform error body.
+
+```bash
+curl -i http://localhost:8080/health
+```
+
+```json
+{"status":"ok","database":"up","version":"0.1.0"}
+```
+
+When the database fails or does not answer within 2 s the status is `503`:
+
+```json
+{"status":"degraded","database":"down","version":"0.1.0"}
+```
+
+The service recovers without a restart once the database accepts connections
+again. Other methods on `/health` return the uniform `405`.
 
 ## Logging
 

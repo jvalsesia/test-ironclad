@@ -25,13 +25,16 @@ use nix::unistd::Pid;
 use sqlx::PgPool;
 use sqlx::postgres::PgConnectOptions;
 use task_api::http::{AppState, RouterOptions, build_router};
-use task_api::infrastructure::db::PgDiagnosticsProbe;
+use task_api::infrastructure::db::{PgDiagnosticsProbe, PgTaskRepository};
 use tower::ServiceExt;
 
 /// Builds the real router over `pool`, with the diagnostic routes mounted
 /// when `test_routes` is true.
 pub fn test_router(pool: PgPool, test_routes: bool) -> Router {
-    let state = AppState::new(Arc::new(PgDiagnosticsProbe::new(pool)));
+    let state = AppState::new(
+        Arc::new(PgDiagnosticsProbe::new(pool.clone())),
+        Arc::new(PgTaskRepository::new(pool)),
+    );
     build_router(state, RouterOptions { test_routes })
 }
 
@@ -383,4 +386,38 @@ impl ServiceProcess {
         }
         false
     }
+}
+
+/// A `tasks` row read directly with SQL, outside the service.
+#[derive(Debug)]
+pub struct StoredTask {
+    pub id: uuid::Uuid,
+    pub title: String,
+    pub description: Option<String>,
+    pub status: String,
+    pub priority: String,
+    pub due_date: Option<chrono::NaiveDate>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Number of rows currently in `tasks`.
+pub async fn count_tasks(pool: &PgPool) -> i64 {
+    sqlx::query_scalar!("SELECT COUNT(*) AS \"count!\" FROM tasks")
+        .fetch_one(pool)
+        .await
+        .unwrap()
+}
+
+/// The stored row with `id`, if any.
+pub async fn stored_task(pool: &PgPool, id: uuid::Uuid) -> Option<StoredTask> {
+    sqlx::query_as!(
+        StoredTask,
+        "SELECT id, title, description, status, priority, due_date, created_at, updated_at \
+         FROM tasks WHERE id = $1",
+        id
+    )
+    .fetch_optional(pool)
+    .await
+    .unwrap()
 }

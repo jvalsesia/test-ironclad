@@ -38,13 +38,13 @@
       "dependencies": [
         "F01"
       ],
-      "status": "pending",
+      "status": "done",
       "cycles": 0,
       "failure_reason": null,
-      "report_path": null,
-      "started_at": null,
-      "updated_at": "2026-11-20T21:06:07Z",
-      "completed_at": null
+      "report_path": "docs/F03-health-check/eval-report-2026-11-21T22-05-00Z.md",
+      "started_at": "2026-11-21T21:37:33Z",
+      "updated_at": "2026-11-21T21:45:00Z",
+      "completed_at": "2026-11-21T21:45:00Z"
     },
     "F04": {
       "name": "Create Task",
@@ -53,13 +53,13 @@
       "dependencies": [
         "F01"
       ],
-      "status": "pending",
+      "status": "done",
       "cycles": 0,
       "failure_reason": null,
-      "report_path": null,
-      "started_at": null,
-      "updated_at": "2026-11-20T21:06:07Z",
-      "completed_at": null
+      "report_path": "docs/F04-create-task/eval-report-2026-11-21T22-10-00Z.md",
+      "started_at": "2026-11-21T21:37:54Z",
+      "updated_at": "2026-11-21T22:15:00Z",
+      "completed_at": "2026-11-21T22:15:00Z"
     },
     "F05": {
       "name": "Get Task by ID",
@@ -128,13 +128,13 @@
       "dependencies": [
         "F01"
       ],
-      "status": "pending",
+      "status": "done",
       "cycles": 0,
       "failure_reason": null,
-      "report_path": null,
-      "started_at": null,
-      "updated_at": "2026-11-20T21:06:07Z",
-      "completed_at": null
+      "report_path": "docs/F09-docker-compose-local-environment/eval-report-2026-11-21T22-17-29Z.md",
+      "started_at": "2026-11-21T21:54:47Z",
+      "updated_at": "2026-11-21T22:21:11Z",
+      "completed_at": "2026-11-21T22:21:11Z"
     },
     "F10": {
       "name": "OpenAPI Documentation and Swagger UI",
