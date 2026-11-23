@@ -5,7 +5,7 @@
 //! `value_type`. Unit tests keep these values in step with the parsers that
 //! actually accept them.
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use utoipa::openapi::{RefOr, Schema};
 use utoipa::{PartialSchema, ToSchema};
 
@@ -27,8 +27,7 @@ pub enum TaskPrioritySchema {
     High,
 }
 
-/// `ok` when the database answered within the health timeout, `degraded`
-/// otherwise.
+/// `ok` when the database answered within the health timeout, else `degraded`.
 #[derive(Debug, Clone, Copy, ToSchema)]
 #[schema(rename_all = "snake_case")]
 pub enum HealthState {
@@ -81,6 +80,80 @@ pub fn sort_param_schema() -> RefOr<Schema> {
 /// `GET /tasks` `order` parameter schema: the enum with `default: desc`.
 pub fn order_param_schema() -> RefOr<Schema> {
     with_default::<SortOrderSchema>("desc")
+}
+
+/// Id used by every documented example.
+pub const EXAMPLE_TASK_ID: &str = "3f2b6a1c-8d4e-4f7a-9b2c-1e5d7a9c0b3f";
+
+/// `POST /tasks` request example (PRD F04).
+pub fn create_task_request_example() -> Value {
+    json!({"title": "Write PRD", "priority": "high", "due_date": "2026-12-01"})
+}
+
+/// `PATCH /tasks/{id}` request example (PRD F07).
+pub fn update_task_request_example() -> Value {
+    json!({"status": "done"})
+}
+
+/// The task created from [`create_task_request_example`].
+pub fn task_example() -> Value {
+    json!({
+        "id": EXAMPLE_TASK_ID,
+        "title": "Write PRD",
+        "description": null,
+        "status": "todo",
+        "priority": "high",
+        "due_date": "2026-12-01",
+        "created_at": "2026-11-21T18:11:00.000Z",
+        "updated_at": "2026-11-21T18:11:00.000Z"
+    })
+}
+
+/// [`task_example`] after the [`update_task_request_example`] patch.
+pub fn updated_task_example() -> Value {
+    json!({
+        "id": EXAMPLE_TASK_ID,
+        "title": "Write PRD",
+        "description": null,
+        "status": "done",
+        "priority": "high",
+        "due_date": "2026-12-01",
+        "created_at": "2026-11-21T18:11:00.000Z",
+        "updated_at": "2026-11-22T09:30:00.000Z"
+    })
+}
+
+/// A one-item page with the default `limit` and `offset`.
+pub fn task_page_example() -> Value {
+    json!({"items": [task_example()], "total": 1, "limit": 20, "offset": 0})
+}
+
+pub fn health_ok_example() -> Value {
+    json!({"status": "ok", "database": "up", "version": env!("CARGO_PKG_VERSION")})
+}
+
+pub fn health_degraded_example() -> Value {
+    json!({"status": "degraded", "database": "down", "version": env!("CARGO_PKG_VERSION")})
+}
+
+pub fn task_not_found_example() -> Value {
+    json!({"error": {
+        "code": "not_found",
+        "message": format!("Task {EXAMPLE_TASK_ID} not found"),
+        "details": []
+    }})
+}
+
+pub fn invalid_id_example() -> Value {
+    json!({"error": {"code": "invalid_id", "message": "Task id must be a valid UUID", "details": []}})
+}
+
+pub fn validation_error_example() -> Value {
+    json!({"error": {
+        "code": "validation_error",
+        "message": "Request validation failed",
+        "details": [{"field": "title", "message": "must be between 1 and 200 characters"}]
+    }})
 }
 
 #[cfg(test)]

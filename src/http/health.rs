@@ -1,15 +1,17 @@
 //! `GET /health`: database reachability probe for operators and orchestrators.
 
 use axum::Json;
-use axum::Router;
 use axum::extract::State;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
 use serde::Serialize;
 use utoipa::ToSchema;
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_axum::routes;
 
-use super::openapi::schemas::{DatabaseState, HealthState};
+use super::openapi::schemas::{
+    DatabaseState, HealthState, health_degraded_example, health_ok_example,
+};
 use super::state::AppState;
 use crate::application::health::{CheckHealth, HEALTH_TIMEOUT, HealthStatus};
 
@@ -41,10 +43,22 @@ impl HealthResponse {
     }
 }
 
-pub fn routes() -> Router<AppState> {
-    Router::new().route("/health", get(health))
+pub fn routes() -> OpenApiRouter<AppState> {
+    OpenApiRouter::new().routes(routes!(health))
 }
 
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "Health",
+    operation_id = "getHealth",
+    summary = "Check service health",
+    description = "Reports whether the service can reach its database. Never cached.",
+    responses(
+        (status = 200, description = "Service and database are healthy", content((HealthResponse = "application/json", example = health_ok_example))),
+        (status = 503, description = "Database unreachable or too slow", content((HealthResponse = "application/json", example = health_degraded_example))),
+    )
+)]
 async fn health(State(state): State<AppState>) -> Response {
     let status = CheckHealth::new(state.diagnostics.clone(), HEALTH_TIMEOUT)
         .execute()
