@@ -7,7 +7,7 @@ Single-tenant REST API for managing tasks. Rust + axum + sqlx + PostgreSQL. No a
 - Per-feature docs: `docs/F<ID>-<kebab-name>/{spec.md,plan.md,contract.md}` (+ `eval-report-<ts>.md` from the evaluator)
 - Developer how-to (run, test, env vars): `README.md`
 
-**Status:** F01 (project foundation) is implemented and evaluated `done`. F02–F10 are not started; build them wave by wave (see Workflow).
+**Status:** F01 (project foundation) is implemented and evaluated `done`. F09 (Docker Compose environment) is implemented. The other features are not started; build them wave by wave (see Workflow).
 
 ## Stack
 
@@ -60,7 +60,8 @@ Dependencies point inward: `http` → `application` → `domain`; `infrastructur
   cargo test
   ```
   `.env.test` holds only the local `DATABASE_URL` and is committed. The full suite takes ~50 s (shutdown/startup tests wait on real timeouts). One test needs TCP port 8080 free.
-- Local Postgres: `docker run -d --name task-api-pg -p 5432:5432 -e POSTGRES_USER=tasks -e POSTGRES_PASSWORD=tasks -e POSTGRES_DB=tasks postgres:16-alpine` (or `docker compose up db` once F09 exists).
+- Local Postgres: `docker run -d --name task-api-pg -p 5432:5432 -e POSTGRES_USER=tasks -e POSTGRES_PASSWORD=tasks -e POSTGRES_DB=tasks postgres:16-alpine` (or `docker compose up -d db`; then `export DATABASE_URL=postgres://tasks:tasks@localhost:5432/tasks` and `SQLX_OFFLINE=true cargo test`).
+- Docker: `docker compose up --build` runs db + api (host ports 5432 and 8080 must be free); `down` keeps volume `pgdata`, `down -v` wipes it. Compose project `task-api`, image `task-api:local`; compose uses explicit `environment:` only (never `.env`). `Dockerfile` builds offline (`SQLX_OFFLINE=true`, committed `.sqlx/`), runtime is `debian:bookworm-slim`, non-root, under 150 MB. `tests/docker_files.rs` statically guards these files.
 
 ## Quality gates
 
