@@ -83,13 +83,13 @@
       "dependencies": [
         "F04"
       ],
-      "status": "pending",
+      "status": "done",
       "cycles": 0,
       "failure_reason": null,
-      "report_path": null,
-      "started_at": null,
-      "updated_at": "2026-11-20T21:06:07Z",
-      "completed_at": null
+      "report_path": "docs/F06-list-tasks/eval-report-2026-11-23T15-24-34Z.md",
+      "started_at": "2026-11-23T15:15:37Z",
+      "updated_at": "2026-11-23T15:29:53Z",
+      "completed_at": "2026-11-23T15:29:53Z"
     },
     "F07": {
       "name": "Update Task",

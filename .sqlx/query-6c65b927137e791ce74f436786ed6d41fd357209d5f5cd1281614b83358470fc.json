@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tasks (title, status, priority, due_date) SELECT 'Task ' || g, (ARRAY['todo', 'in_progress', 'done'])[g % 3 + 1], (ARRAY['low', 'medium', 'high'])[(g / 3) % 3 + 1], CASE WHEN (g / 9) % 3 = 0 THEN NULL ELSE DATE '2026-01-01' + (g % 365) END FROM generate_series(1, 10000) AS g",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "6c65b927137e791ce74f436786ed6d41fd357209d5f5cd1281614b83358470fc"
+}

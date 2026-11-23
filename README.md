@@ -120,6 +120,45 @@ Response `201` with `Location: /tasks/{id}`:
 Errors: `400 invalid_json`, `413 payload_too_large`, `415 unsupported_media_type`,
 `422 validation_error` (one `details` entry per invalid field), `503 service_unavailable`.
 
+### `GET /tasks`
+
+Lists one page of tasks. All query parameters are optional:
+
+| Parameter | Values | Default |
+|-----------|--------|---------|
+| `status` | comma-separated `todo`, `in_progress`, `done` (OR within the list) | no filter |
+| `priority` | comma-separated `low`, `medium`, `high` (OR within the list; AND with `status`) | no filter |
+| `sort` | `created_at`, `updated_at`, `due_date`, `priority` | `created_at` |
+| `order` | `asc`, `desc` | `desc` |
+| `limit` | integer 1-100 | `20` |
+| `offset` | integer 0-10000 | `0` |
+
+`priority` sorts `low < medium < high`; tasks without a `due_date` come last in
+both directions; ties are broken by `id` ascending. Values are case-sensitive;
+empty values, empty list items (`todo,,done`) and a known parameter given more
+than once are rejected. Unknown parameter names are ignored.
+
+```bash
+curl -s 'localhost:8080/tasks?status=todo,in_progress&priority=high&sort=due_date&order=asc&limit=50'
+```
+
+Response `200`; `total` counts every match regardless of `limit`/`offset`, and
+`limit`/`offset` echo the effective values:
+
+```json
+{"items":[{"id":"3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60","title":"Write PRD","description":null,"status":"todo","priority":"high","due_date":"2026-12-01","created_at":"2026-11-21T18:11:00.123Z","updated_at":"2026-11-21T18:11:00.123Z"}],"total":1,"limit":50,"offset":0}
+```
+
+Invalid parameters are all reported at once (`GET /tasks?status=closed&limit=500`):
+
+```json
+{"error":{"code":"invalid_query","message":"Query parameters are invalid","details":[{"field":"status","message":"must be one of: todo, in_progress, done"},{"field":"limit","message":"must be an integer between 1 and 100"}]}}
+```
+
+Errors: `400 invalid_query` (one `details` entry per invalid parameter, in the
+order `status`, `priority`, `sort`, `order`, `limit`, `offset`),
+`503 service_unavailable`.
+
 ### `GET /tasks/{id}`
 
 Returns one task. `{id}` must be a UUID in the 36-character hyphenated form

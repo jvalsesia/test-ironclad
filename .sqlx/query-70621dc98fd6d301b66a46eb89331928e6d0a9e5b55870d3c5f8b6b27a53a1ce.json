@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tasks (title, status, priority, due_date) SELECT 'Tied ' || g, 'todo', 'medium', NULL FROM generate_series(1, 20) AS g RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "tasks",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "70621dc98fd6d301b66a46eb89331928e6d0a9e5b55870d3c5f8b6b27a53a1ce"
+}

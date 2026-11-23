@@ -9,6 +9,9 @@ pub mod create;
 pub mod delete;
 pub mod dto;
 pub mod get;
+pub mod list;
+pub mod list_params;
+pub mod page;
 pub mod task_id_path;
 pub mod update;
 
@@ -18,6 +21,7 @@ pub use task_id_path::TaskIdPath;
 pub fn routes() -> Router<AppState> {
     Router::new()
         .merge(create::routes())
+        .merge(list::routes())
         .merge(get::routes())
         .merge(update::routes())
         .merge(delete::routes())
