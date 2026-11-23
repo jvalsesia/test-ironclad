@@ -8,6 +8,7 @@ use super::state::AppState;
 pub mod create;
 pub mod dto;
 pub mod list_params;
+pub mod page;
 
 pub use dto::{CreateTaskRequest, TaskResponse};
 
