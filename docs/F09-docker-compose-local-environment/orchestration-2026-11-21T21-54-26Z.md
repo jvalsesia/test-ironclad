@@ -30,3 +30,24 @@
 | 0 | implement-feature | `success` | phases `3/3` committed | — |
 | 0 | evaluator | `pending` | `P=8 F=0 B=6 M=0 S=0` (of 14) · ACs ✓3 ✗0 ⊘4 · blocked by foreign container on :5432 | `eval-report-2026-11-21T22-00-49Z.md` |
 | 0 | evaluator (re-run after :5432 freed) | `clean` | `P=14 F=0 B=0 M=0 S=0` · ACs ✓7 ✗0 ⊘0 | `eval-report-2026-11-21T22-17-29Z.md` |
+
+---
+
+## Final Verdict
+
+**Status:** `success`
+
+**Total cycles:** `1` (1 implement-feature + 0 fix-runner)
+
+**Total commits across cycles:** `3` phases + 0 fixes
+
+**All eval-reports produced:**
+
+1. `eval-report-2026-11-21T22-00-49Z.md` (pending; 6 BLOCKED by foreign container on :5432)
+2. `eval-report-2026-11-21T22-17-29Z.md` (clean)
+
+**Termination reason:** clean evaluator after the operator approved stopping `taskapi-test-pg` (restarted afterwards). PR: https://github.com/jvalsesia/test-ironclad/pull/9
+
+## Soft-fails (run-level)
+
+- Fix cycle skipped — blockage was environmental (port 5432), resolved by operator-approved container stop.
