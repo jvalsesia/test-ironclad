@@ -1,5 +1,7 @@
 //! The persisted task entity.
 
+use std::fmt;
+
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -16,6 +18,13 @@ impl TaskId {
 
     pub fn value(self) -> Uuid {
         self.0
+    }
+}
+
+/// Lowercase hyphenated form, e.g. `3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60`.
+impl fmt::Display for TaskId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0.hyphenated(), f)
     }
 }
 
@@ -90,5 +99,16 @@ impl Task {
 
     pub fn updated_at(&self) -> DateTime<Utc> {
         self.updated_at
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn task_id_displays_lowercase_hyphenated() {
+        let id = TaskId::new(Uuid::from_u128(0x3F2B6F0E_6D4A_4C8E_9A0F_1B2C3D4E5F60));
+        assert_eq!(id.to_string(), "3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60");
     }
 }
