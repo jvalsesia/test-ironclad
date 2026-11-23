@@ -1,5 +1,7 @@
 //! The persisted task entity.
 
+use std::fmt;
+
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -16,6 +18,13 @@ impl TaskId {
 
     pub fn value(self) -> Uuid {
         self.0
+    }
+}
+
+/// Lowercase hyphenated UUID form.
+impl fmt::Display for TaskId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0.hyphenated(), f)
     }
 }
 
