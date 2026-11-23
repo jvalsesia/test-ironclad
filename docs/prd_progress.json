@@ -68,13 +68,13 @@
       "dependencies": [
         "F04"
       ],
-      "status": "pending",
+      "status": "done",
       "cycles": 0,
       "failure_reason": null,
-      "report_path": null,
-      "started_at": null,
-      "updated_at": "2026-11-20T21:06:07Z",
-      "completed_at": null
+      "report_path": "docs/F05-get-task-by-id/eval-report-2026-11-23T15-25-29Z.md",
+      "started_at": "2026-11-23T15:15:38Z",
+      "updated_at": "2026-11-23T15:30:27Z",
+      "completed_at": "2026-11-23T15:30:27Z"
     },
     "F06": {
       "name": "List Tasks",
