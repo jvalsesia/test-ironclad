@@ -25,6 +25,31 @@ docker run -d --name task-api-pg -p 5432:5432 \
   postgres:16-alpine
 ```
 
+## Docker
+
+Docker Engine with Compose v2+ runs the whole stack. Host ports **5432**
+(PostgreSQL) and **8080** (API) must be free.
+
+```bash
+docker compose up --build   # build the api image, start db, wait for healthy, start api
+docker compose up db        # only PostgreSQL on localhost:5432 (for cargo run / cargo test)
+docker compose down         # stop and remove containers; keep the pgdata volume
+docker compose down -v      # also delete the pgdata volume (wipes all data)
+```
+
+The `api` image (`task-api:local`) is built offline from the committed `.sqlx/`
+metadata, runs as a non-root user and is under 150 MB. The stack ignores `.env`;
+containers use the explicit `environment:` entries in `docker-compose.yml`.
+
+Run the tests against the compose database (it has no `tasks` table for
+compile-time query checking, hence offline mode):
+
+```bash
+docker compose up -d db
+export DATABASE_URL=postgres://tasks:tasks@localhost:5432/tasks
+SQLX_OFFLINE=true cargo test
+```
+
 ## Configuration
 
 All configuration comes from environment variables. A `.env` file in the
@@ -39,6 +64,8 @@ working directory is loaded when present; real environment variables win.
 | `DATABASE_MAX_CONNECTIONS` | `10` | 1–100 |
 | `DATABASE_ACQUIRE_TIMEOUT_SECS` | `5` | 1–300 |
 | `ENABLE_TEST_ROUTES` | `false` | `true` / `false` |
+| `LOG_LEVEL` | `info` | `error` / `warn` / `info` / `debug` / `trace` (behavior arrives with F02) |
+| `LOG_FORMAT` | `json` | `json` / `text` (behavior arrives with F02) |
 
 `ENABLE_TEST_ROUTES=true` mounts the `/__test/*` diagnostic routes used by the
 test suite (`db-ping`, `sql-error`, `panic`, `slow`, `echo`). Leave it `false`
@@ -92,6 +119,29 @@ Response `201` with `Location: /tasks/{id}`:
 
 Errors: `400 invalid_json`, `413 payload_too_large`, `415 unsupported_media_type`,
 `422 validation_error` (one `details` entry per invalid field), `503 service_unavailable`.
+
+## Health check
+
+`GET /health` runs `SELECT 1` against the database (2 s timeout) on every
+request. Both responses carry `Cache-Control: no-store`; the 503 body is the
+health payload, not the uniform error body.
+
+```bash
+curl -i http://localhost:8080/health
+```
+
+```json
+{"status":"ok","database":"up","version":"0.1.0"}
+```
+
+When the database fails or does not answer within 2 s the status is `503`:
+
+```json
+{"status":"degraded","database":"down","version":"0.1.0"}
+```
+
+The service recovers without a restart once the database accepts connections
+again. Other methods on `/health` return the uniform `405`.
 
 ## Run the tests
 
