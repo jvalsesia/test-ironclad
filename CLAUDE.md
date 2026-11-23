@@ -7,7 +7,7 @@ Single-tenant REST API for managing tasks. Rust + axum + sqlx + PostgreSQL. No a
 - Per-feature docs: `docs/F<ID>-<kebab-name>/{spec.md,plan.md,contract.md}` (+ `eval-report-<ts>.md` from the evaluator)
 - Developer how-to (run, test, env vars): `README.md`
 
-**Status:** F01 (project foundation) is implemented and evaluated `done`. F03 (health check) is implemented and evaluated `done` (`GET /health`; it reuses `DiagnosticsProbe::ping` under a 2 s timeout in `src/application/health.rs`). F04 (create task: `POST /tasks`, domain task model, `TaskRepository` with all five operations) is implemented and evaluated `done`. F09 (Docker Compose environment) is implemented. The other features are not started or not yet merged; build them wave by wave (see Workflow).
+**Status:** F01 (project foundation) is implemented and evaluated `done`. F02 (structured logging and request IDs) is implemented and evaluated `done`. F03 (health check) is implemented and evaluated `done` (`GET /health`; it reuses `DiagnosticsProbe::ping` under a 2 s timeout in `src/application/health.rs`). F04 (create task: `POST /tasks`, domain task model, `TaskRepository` with all five operations) is implemented and evaluated `done`. F09 (Docker Compose environment) is implemented. The other features are not started or not yet merged; build them wave by wave (see Workflow).
 
 ## Stack
 
@@ -15,9 +15,9 @@ Single-tenant REST API for managing tasks. Rust + axum + sqlx + PostgreSQL. No a
 - axum 0.8.9; tower-http 0.6 (`catch-panic`)
 - sqlx 0.9.1 (`postgres`, `runtime-tokio`, `tls-rustls`, `uuid`, `chrono`, `migrate`, `macros`; default features off)
 - PostgreSQL 16
-- chrono (default features off; `std`, `clock`), uuid (`serde`)
+- chrono (default features off; `std`, `clock`), uuid (`serde`, `v4`)
 - serde, serde_json, serde_path_to_error, thiserror 2, async-trait, http-body-util, dotenvy
-- `tracing` + `tracing-subscriber` for logs; utoipa 5.x for OpenAPI (F10)
+- `tracing` + `tracing-subscriber` (`fmt`, `ansi`, `std`, `json`, `env-filter`) for logs; `uuid` for request IDs; utoipa 5.x for OpenAPI (F10)
 - Dev only: reqwest (no TLS), nix (`signal`), futures-util, tower (`util`)
 
 Do not add new crates for things the stack above already covers. Any new dependency must be justified in the feature's spec.
@@ -29,7 +29,7 @@ Single Cargo package `task-api` (library `task_api` + binary `task-api`), clean 
 - `src/domain` — entities, value objects, validation, domain errors (`FieldError`, `DomainError`). Must not reference `axum` or `sqlx` (enforced by `tests/architecture.rs`).
 - `src/application` — use cases, ports (`DiagnosticsProbe`, `TaskRepository` plus `CreateTask` under `application/tasks`), `AppError` (`Validation`, `NotFound`, `Unavailable`, `Internal`).
 - `src/infrastructure/db` — pool with startup retries, embedded migrator, `map_sqlx_error`, sqlx adapters.
-- `src/http` — `router.rs` (`build_router`), `state.rs` (`AppState`), `error.rs` (uniform error body; the only place HTTP statuses for errors are chosen), `extract.rs` (`ApiJson`), `middleware/body_limit.rs`, `test_routes.rs`, `server.rs` (graceful shutdown).
+- `src/http` — `router.rs` (`build_router`), `state.rs` (`AppState`), `error.rs` (uniform error body; the only place HTTP statuses for errors are chosen), `extract.rs` (`ApiJson`), `middleware/body_limit.rs`, `middleware/request_context.rs` (outermost layer: request ID, `request` span, completion log line), `test_routes.rs`, `server.rs` (graceful shutdown).
 - `src/config.rs` — the only place the environment is read.
 - `src/main.rs` — composition root only.
 
@@ -45,7 +45,7 @@ Dependencies point inward: `http` → `application` → `domain`; `infrastructur
 - **Validation:** domain layer, all invalid fields reported at once (422 `validation_error`). DB `CHECK` constraints mirror domain rules. Note `title` is `VARCHAR(200)`, so a 201-char title fails at the column (SQLSTATE 22001) before the CHECK.
 - **Config:** environment variables only, read in `config.rs`; `.env` loaded if present; documented in `.env.example`. `ENABLE_TEST_ROUTES=true` mounts `/__test/*` diagnostic routes — never enable outside tests.
 - **No `unwrap`/`expect`** outside tests (clippy-denied; `clippy.toml` allows them in tests, and `tests/*.rs` carry a crate-level allow). `unsafe` is forbidden.
-- **Logging:** `info!`/`warn!`/`error!` with values formatted into the message. Never log `DATABASE_URL` (it embeds the password). F02 replaces the minimal subscriber in `main.rs`.
+- **Logging:** `info!`/`warn!`/`error!` with values formatted into the message. Never log `DATABASE_URL` (it embeds the password), query strings, or request/response bodies. `LOG_FORMAT` (`json`|`pretty`) and `LOG_LEVEL` (`EnvFilter` directive) are read in `config.rs`; the subscriber is installed by `infrastructure/logging.rs` after config parsing. Every request runs in a `request` span (`request_id`) and emits one completion line; `X-Request-Id` is echoed on every response.
 - **Timestamps:** RFC 3339 UTC. Dates: `YYYY-MM-DD`. IDs: UUID.
 
 ## Task feature (F04)
@@ -53,7 +53,7 @@ Dependencies point inward: `http` → `application` → `domain`; `infrastructur
 - Domain `src/domain/task`: value objects in `fields.rs` own the validation messages (shared with F07); `NewTask::parse` reports every invalid field in order `title`, `description`, `status`, `priority`, `due_date`; the entity file is `task_entity.rs` (a `task.rs` inside `task/` trips clippy `module_inception`) and entities are rebuilt with `Task::restore(TaskParts)`.
 - `TaskRepository` (create, find_by_id, list, update, delete) is implemented by `PgTaskRepository`; `list` uses eight static `query_as!` statements via a private macro. Id and timestamps are generated by PostgreSQL.
 - HTTP: `src/http/tasks/` merges one `routes()` per endpoint; `TaskResponse` is the single task representation (millisecond UTC timestamps). `AppState.tasks` holds the repository; later features add use cases built in handlers, not state fields.
-- Tests: `tests/common` has `count_tasks` and `stored_task` to read rows directly. `uuid` has no `v4` feature, so tests use fixed UUIDs for unknown ids.
+- Tests: `tests/common` has `count_tasks` and `stored_task` to read rows directly. `uuid` now has `v4` (request IDs, F02), so tests may generate UUIDs.
 
 ## Testing
 

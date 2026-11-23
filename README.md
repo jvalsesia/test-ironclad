@@ -64,8 +64,8 @@ working directory is loaded when present; real environment variables win.
 | `DATABASE_MAX_CONNECTIONS` | `10` | 1–100 |
 | `DATABASE_ACQUIRE_TIMEOUT_SECS` | `5` | 1–300 |
 | `ENABLE_TEST_ROUTES` | `false` | `true` / `false` |
-| `LOG_LEVEL` | `info` | `error` / `warn` / `info` / `debug` / `trace` (behavior arrives with F02) |
-| `LOG_FORMAT` | `json` | `json` / `text` (behavior arrives with F02) |
+| `LOG_FORMAT` | `json` | `json` / `pretty` |
+| `LOG_LEVEL` | `info` | `error`, `warn`, `info`, `debug`, `trace`, or an `EnvFilter` directive such as `info,sqlx=warn` |
 
 `ENABLE_TEST_ROUTES=true` mounts the `/__test/*` diagnostic routes used by the
 test suite (`db-ping`, `sql-error`, `panic`, `slow`, `echo`). Leave it `false`
@@ -142,6 +142,29 @@ When the database fails or does not answer within 2 s the status is `503`:
 
 The service recovers without a restart once the database accepts connections
 again. Other methods on `/health` return the uniform `405`.
+
+## Logging
+
+Logs go to standard output. `LOG_FORMAT=json` (default) prints one JSON object
+per line; `LOG_FORMAT=pretty` prints human-readable lines (colors only when
+stdout is a terminal). `LOG_LEVEL` filters output; an invalid `LOG_FORMAT` or
+`LOG_LEVEL` stops startup with exit code `1`. Configuration errors are always
+plain text.
+
+Every request gets an ID. A valid incoming `X-Request-Id` (1-128 characters of
+`A-Z a-z 0-9 . _ -`) is reused; anything else is replaced by a new UUID v4. The
+ID is returned in the `X-Request-Id` response header on every response
+(including 4xx, 5xx and unknown routes) and appears in the request's single
+completion line:
+
+```json
+{"timestamp":"2026-11-21T18:11:00.123456Z","level":"INFO","request_id":"3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60","method":"GET","path":"/__test/db-ping","status":200,"latency_ms":4,"message":"request completed","target":"task_api::http::middleware::request_context","span":{"request_id":"3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60","name":"request"}}
+```
+
+The completion level is `ERROR` for 5xx, `WARN` for 4xx and `INFO` otherwise
+(`DEBUG` for a successful `GET /health`). Other events logged while a request
+is handled carry the ID at `span.request_id`. Query strings and request or
+response bodies are never logged.
 
 ## Run the tests
 

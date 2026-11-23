@@ -11,7 +11,7 @@ use tracing::error;
 
 use super::error::ApiError;
 use super::health;
-use super::middleware::{MAX_BODY_BYTES, enforce_body_limit};
+use super::middleware::{MAX_BODY_BYTES, enforce_body_limit, request_context};
 use super::state::AppState;
 use super::tasks;
 use super::test_routes;
@@ -23,7 +23,9 @@ pub struct RouterOptions {
 }
 
 /// Builds the application router. Layer order, outermost first:
-/// panic containment → body limit → route / fallback.
+/// request context (ID, span, completion log) → panic containment → body
+/// limit → route / fallback. The request context is outermost so every
+/// response, including panics and early rejections, is covered.
 pub fn build_router(state: AppState, options: RouterOptions) -> Router {
     let mut router = Router::new().merge(health::routes()).merge(tasks::routes());
     if options.test_routes {
@@ -36,6 +38,7 @@ pub fn build_router(state: AppState, options: RouterOptions) -> Router {
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(from_fn(enforce_body_limit))
         .layer(CatchPanicLayer::custom(panic_response))
+        .layer(from_fn(request_context))
 }
 
 async fn route_not_found() -> ApiError {

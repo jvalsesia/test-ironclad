@@ -23,13 +23,13 @@
       "dependencies": [
         "F01"
       ],
-      "status": "pending",
+      "status": "done",
       "cycles": 0,
       "failure_reason": null,
-      "report_path": null,
-      "started_at": null,
-      "updated_at": "2026-11-20T21:06:07Z",
-      "completed_at": null
+      "report_path": "docs/F02-structured-logging-and-request-ids/eval-report-2026-11-21T21-44-06Z.md",
+      "started_at": "2026-11-21T21:37:31Z",
+      "updated_at": "2026-11-21T21:46:20Z",
+      "completed_at": "2026-11-21T21:46:20Z"
     },
     "F03": {
       "name": "Health Check",
