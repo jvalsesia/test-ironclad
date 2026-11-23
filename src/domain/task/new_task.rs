@@ -96,7 +96,9 @@ mod tests {
     }
 
     fn fields(err: DomainError) -> Vec<(String, String)> {
-        let DomainError::Validation(list) = err;
+        let DomainError::Validation(list) = err else {
+            panic!("unexpected error: {err:?}");
+        };
         list.into_iter().map(|e| (e.field, e.message)).collect()
     }
 

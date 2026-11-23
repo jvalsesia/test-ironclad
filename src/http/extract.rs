@@ -56,7 +56,7 @@ fn has_json_content_type(headers: &HeaderMap) -> bool {
         .is_some_and(|media_type| media_type.trim().eq_ignore_ascii_case("application/json"))
 }
 
-fn parse_json<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, ApiError> {
+pub(crate) fn parse_json<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, ApiError> {
     let mut deserializer = serde_json::Deserializer::from_slice(bytes);
     serde_path_to_error::deserialize(&mut deserializer).map_err(|err| {
         let is_type_error = err.inner().classify() == Category::Data;
