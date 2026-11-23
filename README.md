@@ -120,6 +120,36 @@ Response `201` with `Location: /tasks/{id}`:
 Errors: `400 invalid_json`, `413 payload_too_large`, `415 unsupported_media_type`,
 `422 validation_error` (one `details` entry per invalid field), `503 service_unavailable`.
 
+### `GET /tasks/{id}`
+
+Returns one task. `{id}` must be a UUID in the 36-character hyphenated form
+(any version, hex case-insensitive); it is checked before the database is
+touched.
+
+```bash
+curl -i localhost:8080/tasks/3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60
+```
+
+Response `200` with the same representation as `POST /tasks`:
+
+```json
+{"id":"3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60","title":"Write PRD","description":null,"status":"todo","priority":"high","due_date":"2026-12-01","created_at":"2026-11-21T18:11:00.123Z","updated_at":"2026-11-21T18:11:00.123Z"}
+```
+
+Malformed id (simple, braced or URN UUID forms included), `400`:
+
+```json
+{"error":{"code":"invalid_id","message":"Task id must be a valid UUID","details":[]}}
+```
+
+Unknown id, `404` (the id is reported in lowercase):
+
+```json
+{"error":{"code":"not_found","message":"Task 0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5b not found","details":[]}}
+```
+
+Other errors: `503 service_unavailable`, `500 internal_error`.
+
 ### `DELETE /tasks/{id}`
 
 Permanently deletes a task. `{id}` must be a UUID in the 36-character

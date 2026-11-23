@@ -1,9 +1,10 @@
-//! The shared "task not found" error, reused by every `/tasks/{id}` use case.
+//! Shared not-found error for task endpoints addressed by id.
 
 use crate::application::AppError;
 use crate::domain::task::TaskId;
 
-/// `Task <id> not found`, with the id in lowercase hyphenated form.
+/// `AppError::NotFound("Task <id> not found")`, with the id in its
+/// canonical lowercase hyphenated form. Shared by get, update and delete.
 pub fn task_not_found(id: TaskId) -> AppError {
     AppError::NotFound(format!("Task {id} not found"))
 }
@@ -16,13 +17,13 @@ mod tests {
 
     #[test]
     fn message_uses_lowercase_canonical_id() {
-        let uuid = Uuid::try_parse("3F2B6F0E-6D4A-4C8E-9A0F-1B2C3D4E5F60").unwrap();
+        let uuid = Uuid::parse_str("0B7D2C1E-5F3A-4E8B-9C6D-7A1F2E3D4C5B").unwrap();
         match task_not_found(TaskId::new(uuid)) {
             AppError::NotFound(message) => assert_eq!(
                 message,
-                "Task 3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60 not found"
+                "Task 0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5b not found"
             ),
-            other => panic!("unexpected variant: {other:?}"),
+            other => panic!("unexpected error: {other:?}"),
         }
     }
 }

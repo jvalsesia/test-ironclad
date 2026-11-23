@@ -1,4 +1,4 @@
-//! The shared `{id}` path extractor for `/tasks/{id}` endpoints.
+//! Shared `{id}` path extractor for task endpoints.
 
 use axum::extract::{FromRequestParts, Path};
 use axum::http::request::Parts;
@@ -12,11 +12,11 @@ pub const MSG_INVALID_TASK_ID: &str = "Task id must be a valid UUID";
 /// Length of the hyphenated 8-4-4-4-12 UUID form.
 const HYPHENATED_LEN: usize = 36;
 
-/// A task id taken from the `{id}` path segment. Only the 36-character
-/// hyphenated UUID form is accepted (hex case-insensitive, any version);
-/// every rejection, including invalid UTF-8, is `400 invalid_id`. Being a
-/// parts extractor, it runs before any body extractor or database access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The task id from the single `{id}` path segment. Accepts only the
+/// 36-character hyphenated UUID form (any version, hex case-insensitive).
+/// Every rejection, including invalid percent-encoded UTF-8, is the
+/// uniform `400 invalid_id`. Runs before any database access.
+#[derive(Debug, Clone, Copy)]
 pub struct TaskIdPath(pub TaskId);
 
 impl<S> FromRequestParts<S> for TaskIdPath
@@ -26,138 +26,131 @@ where
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let Path(segment) = Path::<String>::from_request_parts(parts, state)
+        let Path(raw) = Path::<String>::from_request_parts(parts, state)
             .await
-            .map_err(|_| invalid())?;
-        parse_task_id(&segment).map(TaskIdPath).ok_or_else(invalid)
+            .map_err(|_| invalid_task_id())?;
+        parse_task_id(&raw).map(TaskIdPath)
     }
 }
 
-fn invalid() -> ApiError {
+/// At exactly 36 bytes the `uuid` parser only accepts the hyphenated
+/// layout, so the length check excludes the simple, braced and URN forms.
+fn parse_task_id(raw: &str) -> Result<TaskId, ApiError> {
+    if raw.len() != HYPHENATED_LEN {
+        return Err(invalid_task_id());
+    }
+    Uuid::try_parse(raw)
+        .map(TaskId::new)
+        .map_err(|_| invalid_task_id())
+}
+
+fn invalid_task_id() -> ApiError {
     ApiError::invalid_id(MSG_INVALID_TASK_ID)
-}
-
-/// At exactly 36 bytes, the `uuid` parser only accepts the hyphenated
-/// layout, so the length check rules out the simple, braced and URN forms.
-fn parse_task_id(segment: &str) -> Option<TaskId> {
-    if segment.len() != HYPHENATED_LEN {
-        return None;
-    }
-    Uuid::try_parse(segment).ok().map(TaskId::new)
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::body::Body;
-    use axum::extract::Request;
+    use axum::Router;
+    use axum::body::{Body, to_bytes};
+    use axum::http::{Request, StatusCode};
     use axum::routing::get;
-    use axum::{Json, Router};
-    use http_body_util::BodyExt;
     use tower::ServiceExt;
 
     use crate::http::error::ErrorCode;
 
     use super::*;
 
-    async fn extract(segment: &str) -> Result<TaskId, (u16, serde_json::Value)> {
-        let router = Router::new().route(
-            "/tasks/{id}",
-            get(|TaskIdPath(id): TaskIdPath| async move { Json(id.value()) }),
-        );
-        let request = Request::builder()
-            .uri(format!("/tasks/{segment}"))
-            .body(Body::empty())
-            .unwrap();
-        let response = router.oneshot(request).await.unwrap();
-        let status = response.status().as_u16();
-        let bytes = response.into_body().collect().await.unwrap().to_bytes();
-        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-        if status == 200 {
-            let uuid: Uuid = serde_json::from_value(json).unwrap();
-            Ok(TaskId::new(uuid))
-        } else {
-            Err((status, json))
-        }
-    }
+    const ID: &str = "0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5b";
 
-    async fn assert_rejected(segment: &str) {
-        let (status, body) = extract(segment)
-            .await
-            .expect_err(&format!("{segment:?} should be rejected"));
-        assert_eq!(status, 400, "{segment:?}");
-        assert_eq!(
-            body,
-            serde_json::json!({
-                "error": {"code": "invalid_id", "message": MSG_INVALID_TASK_ID, "details": []}
-            }),
-            "{segment:?}"
-        );
+    fn assert_rejected(raw: &str) {
+        let err = parse_task_id(raw).expect_err(raw);
+        assert_eq!(err.code, ErrorCode::InvalidId, "{raw}");
+        assert_eq!(err.message, MSG_INVALID_TASK_ID, "{raw}");
+        assert!(err.details.is_empty(), "{raw}");
     }
 
     #[test]
-    fn rejection_uses_the_invalid_id_code() {
-        assert_eq!(invalid().code, ErrorCode::InvalidId);
+    fn accepts_lowercase_hyphenated_uuid() {
+        let id = parse_task_id(ID).unwrap();
+        assert_eq!(id.value(), Uuid::parse_str(ID).unwrap());
     }
 
-    #[tokio::test]
-    async fn accepts_lowercase_hyphenated_uuid() {
-        let uuid = Uuid::new_v4();
-        let id = extract(&uuid.hyphenated().to_string()).await.unwrap();
-        assert_eq!(id.value(), uuid);
+    #[test]
+    fn accepts_uppercase_hex() {
+        let id = parse_task_id(&ID.to_uppercase()).unwrap();
+        assert_eq!(id.to_string(), ID);
     }
 
-    #[tokio::test]
-    async fn accepts_uppercase_hex() {
-        let uuid = Uuid::new_v4();
-        let upper = uuid.hyphenated().to_string().to_uppercase();
-        let id = extract(&upper).await.unwrap();
-        assert_eq!(id.value(), uuid);
-    }
-
-    #[tokio::test]
-    async fn accepts_any_version_and_nil() {
-        for value in [
-            "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-            "01890a5d-ac96-774b-bcce-b302099a8057",
-            "00000000-0000-0000-0000-000000000000",
+    #[test]
+    fn accepts_any_version_and_nil() {
+        for raw in [
+            "c232ab00-9414-11ec-b3c8-9f6bdeced846", // v1
+            "01890a5d-ac96-774b-bcce-b302099a8057", // v7
+            "00000000-0000-0000-0000-000000000000", // nil
         ] {
-            let id = extract(value).await.unwrap();
-            assert_eq!(id.to_string(), value);
+            assert!(parse_task_id(raw).is_ok(), "{raw}");
         }
     }
 
-    #[tokio::test]
-    async fn rejects_non_uuid_text() {
-        for segment in ["not-a-uuid", "abc"] {
-            assert_rejected(segment).await;
+    #[test]
+    fn rejects_non_uuid_text() {
+        for raw in ["not-a-uuid", "abc", ""] {
+            assert_rejected(raw);
         }
-        // An empty segment does not match `/tasks/{id}` at all.
-        assert!(parse_task_id("").is_none());
     }
 
-    #[tokio::test]
-    async fn rejects_other_uuid_forms() {
-        let uuid = Uuid::new_v4();
-        for segment in [
-            uuid.simple().to_string(),
-            uuid.braced().to_string(),
-            uuid.urn().to_string(),
+    #[test]
+    fn rejects_other_uuid_forms() {
+        for raw in [
+            "0b7d2c1e5f3a4e8b9c6d7a1f2e3d4c5b",
+            "{0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5b}",
+            "urn:uuid:0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5b",
         ] {
-            assert_rejected(&segment).await;
+            assert_rejected(raw);
         }
     }
 
-    #[tokio::test]
-    async fn rejects_near_misses() {
-        let valid = "3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60";
-        for segment in [
-            &valid[..35],
-            &format!("{valid}0"),
-            "3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f6g",
-            "3f2b6f0e6-d4a-4c8e-9a0f-1b2c3d4e5f60",
-            "%FF",
+    #[test]
+    fn rejects_near_misses() {
+        for raw in [
+            "0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5",   // 35 characters
+            "0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5b0", // 37 characters
+            "0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5g",  // non-hex
+            "0b7d2c1e5-f3a-4e8b-9c6d-7a1f2e3d4c5b",  // misplaced hyphen
+            "0b7d2c1e-5f3a4-e8b-9c6d-7a1f2e3d4c5b",  // misplaced hyphen
         ] {
-            assert_rejected(segment).await;
+            assert_rejected(raw);
         }
+    }
+
+    async fn extract(uri: &str) -> (StatusCode, String) {
+        let app = Router::new().route(
+            "/tasks/{id}",
+            get(|TaskIdPath(id): TaskIdPath| async move { id.to_string() }),
+        );
+        let response = app
+            .oneshot(Request::get(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let status = response.status();
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        (status, String::from_utf8(body.to_vec()).unwrap())
+    }
+
+    #[tokio::test]
+    async fn extractor_yields_the_parsed_id() {
+        let (status, body) = extract(&format!("/tasks/{}", ID.to_uppercase())).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, ID);
+    }
+
+    #[tokio::test]
+    async fn invalid_utf8_segment_is_invalid_id() {
+        let (status, body) = extract("/tasks/%FF").await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(
+            body,
+            r#"{"error":{"code":"invalid_id","message":"Task id must be a valid UUID","details":[]}}"#
+        );
     }
 }
