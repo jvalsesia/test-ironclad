@@ -17,6 +17,7 @@ path = "src/main.rs"
 [dependencies]
 async-trait = "0.1"
 axum = "0.8.9"
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 dotenvy = "0.15"
 http-body-util = "0.1"
 serde = { version = "1", features = ["derive"] }
@@ -36,6 +37,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "net
 tower-http = { version = "0.6", features = ["catch-panic"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "std"] }
+uuid = { version = "1", features = ["serde"] }
 
 [dev-dependencies]
 futures-util = "0.3"

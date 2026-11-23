@@ -92,6 +92,34 @@ Every error response has the same JSON shape:
 {"error":{"code":"not_found","message":"Route not found","details":[]}}
 ```
 
+## API
+
+### `POST /tasks`
+
+Creates a task. Body (`Content-Type: application/json`, at most 65,536 bytes):
+
+| Field | Rules |
+|-------|-------|
+| `title` | required, trimmed, 1-200 characters |
+| `description` | optional, trimmed, at most 5000 characters; blank becomes `null` |
+| `status` | optional, `todo` (default), `in_progress`, `done` |
+| `priority` | optional, `low`, `medium` (default), `high` |
+| `due_date` | optional, `YYYY-MM-DD`, a real calendar date |
+
+```bash
+curl -i -X POST localhost:8080/tasks -H 'Content-Type: application/json' \
+  -d '{"title":"Write PRD","priority":"high","due_date":"2026-12-01"}'
+```
+
+Response `201` with `Location: /tasks/{id}`:
+
+```json
+{"id":"3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60","title":"Write PRD","description":null,"status":"todo","priority":"high","due_date":"2026-12-01","created_at":"2026-11-21T18:11:00.123Z","updated_at":"2026-11-21T18:11:00.123Z"}
+```
+
+Errors: `400 invalid_json`, `413 payload_too_large`, `415 unsupported_media_type`,
+`422 validation_error` (one `details` entry per invalid field), `503 service_unavailable`.
+
 ## Health check
 
 `GET /health` runs `SELECT 1` against the database (2 s timeout) on every

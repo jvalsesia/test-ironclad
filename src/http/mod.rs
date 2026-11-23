@@ -7,6 +7,7 @@ pub mod middleware;
 pub mod router;
 pub mod server;
 pub mod state;
+pub mod tasks;
 pub mod test_routes;
 
 pub use error::{ApiError, ErrorCode};
