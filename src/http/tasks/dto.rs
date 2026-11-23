@@ -1,9 +1,13 @@
 //! Request and response bodies for the task endpoints.
 
-use chrono::{DateTime, SecondsFormat, Utc};
-use serde::{Deserialize, Serialize};
+use std::fmt;
 
-use crate::domain::task::{RawNewTask, Task};
+use chrono::{DateTime, SecondsFormat, Utc};
+use serde::de::value::MapAccessDeserializer;
+use serde::de::{MapAccess, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
+
+use crate::domain::task::{RawField, RawNewTask, RawTaskChanges, Task};
 
 /// `POST /tasks` body. Every field is optional text so a missing or `null`
 /// title is a domain validation error (422) while a wrongly typed value is
@@ -19,6 +23,93 @@ pub struct CreateTaskRequest {
 
 impl From<CreateTaskRequest> for RawNewTask {
     fn from(request: CreateTaskRequest) -> Self {
+        Self {
+            title: request.title,
+            description: request.description,
+            status: request.status,
+            priority: request.priority,
+            due_date: request.due_date,
+        }
+    }
+}
+
+/// `PATCH /tasks/{id}` body. Each field is three-state: absent (left
+/// unchanged), `null`, or a string. A wrongly typed value is the
+/// extractor's 400 naming the field. Unknown fields are ignored. Only a JSON
+/// object is accepted (serde would otherwise take `[]` as an empty struct).
+#[derive(Debug, Default)]
+pub struct UpdateTaskRequest {
+    pub title: RawField,
+    pub description: RawField,
+    pub status: RawField,
+    pub priority: RawField,
+    pub due_date: RawField,
+}
+
+impl<'de> Deserialize<'de> for UpdateTaskRequest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(ObjectOnly)
+    }
+}
+
+/// Accepts only a map, then hands it to the derived field deserializer so
+/// field paths are still reported for wrongly typed values.
+struct ObjectOnly;
+
+impl<'de> Visitor<'de> for ObjectOnly {
+    type Value = UpdateTaskRequest;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("a JSON object")
+    }
+
+    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        UpdateTaskFields::deserialize(MapAccessDeserializer::new(map)).map(|fields| {
+            UpdateTaskRequest {
+                title: fields.title,
+                description: fields.description,
+                status: fields.status,
+                priority: fields.priority,
+                due_date: fields.due_date,
+            }
+        })
+    }
+}
+
+#[derive(Deserialize)]
+struct UpdateTaskFields {
+    #[serde(default, deserialize_with = "three_state")]
+    pub title: RawField,
+    #[serde(default, deserialize_with = "three_state")]
+    pub description: RawField,
+    #[serde(default, deserialize_with = "three_state")]
+    pub status: RawField,
+    #[serde(default, deserialize_with = "three_state")]
+    pub priority: RawField,
+    #[serde(default, deserialize_with = "three_state")]
+    pub due_date: RawField,
+}
+
+/// Runs only for a present key (absent keys take the `Absent` default), so
+/// `null` and a string value are the two remaining states.
+fn three_state<'de, D>(deserializer: D) -> Result<RawField, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(match Option::<String>::deserialize(deserializer)? {
+        Some(text) => RawField::Value(text),
+        None => RawField::Null,
+    })
+}
+
+impl From<UpdateTaskRequest> for RawTaskChanges {
+    fn from(request: UpdateTaskRequest) -> Self {
         Self {
             title: request.title,
             description: request.description,
@@ -71,6 +162,8 @@ mod tests {
     use uuid::Uuid;
 
     use crate::domain::task::{TaskId, TaskParts, TaskPriority, TaskStatus, TaskTitle};
+    use crate::http::error::{ApiError, ErrorCode};
+    use crate::http::extract::parse_json;
 
     use super::*;
 
@@ -95,6 +188,41 @@ mod tests {
             json,
             r#"{"id":"00000000-0000-0000-0000-000000000000","title":"Write PRD","description":null,"status":"todo","priority":"high","due_date":null,"created_at":"2026-11-21T18:11:00.000Z","updated_at":"2026-11-21T18:11:00.000Z"}"#
         );
+    }
+
+    #[test]
+    fn missing_null_and_value_are_distinct() {
+        let empty: UpdateTaskRequest = serde_json::from_str("{}").unwrap();
+        assert_eq!(empty.due_date, RawField::Absent);
+        assert_eq!(empty.title, RawField::Absent);
+
+        let null: UpdateTaskRequest = serde_json::from_str(r#"{"due_date":null}"#).unwrap();
+        assert_eq!(null.due_date, RawField::Null);
+        assert_eq!(null.description, RawField::Absent);
+
+        let value: UpdateTaskRequest =
+            serde_json::from_str(r#"{"due_date":"2026-12-01","color":"red"}"#).unwrap();
+        assert_eq!(value.due_date, RawField::Value("2026-12-01".into()));
+
+        let raw = RawTaskChanges::from(value);
+        assert_eq!(raw.due_date, RawField::Value("2026-12-01".into()));
+        assert_eq!(raw.status, RawField::Absent);
+    }
+
+    #[test]
+    fn wrong_type_names_the_field() {
+        let err = parse_json::<UpdateTaskRequest>(br#"{"status":"done","title":5}"#).unwrap_err();
+        assert_eq!(err.code, ErrorCode::InvalidJson);
+        assert_eq!(err.details.len(), 1);
+        assert_eq!(err.details[0].field, "title");
+    }
+
+    #[test]
+    fn non_object_body_is_invalid_json_without_details() {
+        for body in ["null", "[]", r#""done""#, "5"] {
+            let err = parse_json::<UpdateTaskRequest>(body.as_bytes()).unwrap_err();
+            assert_eq!(err, ApiError::invalid_json(Vec::new()), "{body}");
+        }
     }
 
     #[test]
