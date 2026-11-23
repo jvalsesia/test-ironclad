@@ -150,6 +150,32 @@ Unknown id, `404` (the id is reported in lowercase):
 
 Other errors: `503 service_unavailable`, `500 internal_error`.
 
+### `DELETE /tasks/{id}`
+
+Permanently deletes a task. `{id}` must be a UUID in the 36-character
+hyphenated form (hex case-insensitive). Any request body is ignored.
+
+```bash
+curl -i -X DELETE localhost:8080/tasks/3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60
+```
+
+Response `204 No Content` with an empty body. Deleting the same id again
+returns `404`:
+
+```json
+{"error":{"code":"not_found","message":"Task 3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60 not found","details":[]}}
+```
+
+A malformed id (e.g. `DELETE /tasks/abc`, or the 32-character form without
+hyphens) returns `400` before the database is touched:
+
+```json
+{"error":{"code":"invalid_id","message":"Task id must be a valid UUID","details":[]}}
+```
+
+Other errors: `405 method_not_allowed`, `503 service_unavailable` (the task is
+kept), `500 internal_error`.
+
 ## Health check
 
 `GET /health` runs `SELECT 1` against the database (2 s timeout) on every
