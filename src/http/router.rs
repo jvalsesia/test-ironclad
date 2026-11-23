@@ -14,7 +14,7 @@ use utoipa_axum::router::OpenApiRouter;
 use super::error::ApiError;
 use super::health;
 use super::middleware::{MAX_BODY_BYTES, enforce_body_limit, request_context};
-use super::openapi::ApiDoc;
+use super::openapi::{self, ApiDoc};
 use super::state::AppState;
 use super::tasks;
 use super::test_routes;
@@ -31,10 +31,11 @@ pub struct RouterOptions {
 /// response, including panics and early rejections, is covered.
 ///
 /// Production routes are registered through the documented router, so each
-/// served route has an OpenAPI operation; the test routes are merged after
-/// the split and never appear in the document.
+/// served route has an OpenAPI operation; the documentation routes and the
+/// test routes are merged after the split and never appear in the document.
 pub fn build_router(state: AppState, options: RouterOptions) -> Router {
-    let (mut router, _doc) = documented_routes().split_for_parts();
+    let (documented, doc) = documented_routes().split_for_parts();
+    let mut router = documented.merge(openapi::docs_routes(doc));
     if options.test_routes {
         router = router.merge(test_routes::routes());
     }
