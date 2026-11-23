@@ -7,11 +7,12 @@ use super::state::AppState;
 
 pub mod create;
 pub mod dto;
+pub mod list;
 pub mod list_params;
 pub mod page;
 
 pub use dto::{CreateTaskRequest, TaskResponse};
 
 pub fn routes() -> Router<AppState> {
-    Router::new().merge(create::routes())
+    Router::new().merge(create::routes()).merge(list::routes())
 }
