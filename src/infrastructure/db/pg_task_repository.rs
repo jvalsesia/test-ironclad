@@ -190,7 +190,7 @@ impl TaskRepository for PgTaskRepository {
                 status = COALESCE($5, status), \
                 priority = COALESCE($6, priority), \
                 due_date = CASE WHEN $7 THEN $8 ELSE due_date END, \
-                updated_at = now() \
+                updated_at = GREATEST(now(), updated_at + interval '1 millisecond') \
              WHERE id = $1 \
              RETURNING id, title, description, status, priority, due_date, created_at, updated_at",
             id.value(),

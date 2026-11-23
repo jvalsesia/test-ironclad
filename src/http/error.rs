@@ -19,6 +19,7 @@ pub const MSG_METHOD_NOT_ALLOWED: &str = "Method not allowed";
 pub const MSG_PAYLOAD_TOO_LARGE: &str = "Request body exceeds 64 KB";
 pub const MSG_UNSUPPORTED_MEDIA_TYPE: &str = "Content-Type must be application/json";
 pub const MSG_VALIDATION: &str = "Request validation failed";
+pub const MSG_NO_CHANGES: &str = "At least one updatable field must be provided";
 pub const MSG_UNAVAILABLE: &str = "Database temporarily unavailable, please retry";
 pub const MSG_INTERNAL: &str = "An unexpected error occurred";
 
@@ -175,6 +176,7 @@ impl From<AppError> for ApiError {
                 MSG_VALIDATION,
                 fields.into_iter().map(ErrorDetail::from).collect(),
             ),
+            AppError::NoChanges => Self::validation(MSG_NO_CHANGES, Vec::new()),
             AppError::NotFound(message) => Self::not_found(message),
             AppError::Unavailable(source) => {
                 warn!("database unavailable: {source}");
@@ -273,6 +275,17 @@ mod tests {
         assert_eq!(
             body,
             r#"{"error":{"code":"service_unavailable","message":"Database temporarily unavailable, please retry","details":[]}}"#
+        );
+    }
+
+    #[tokio::test]
+    async fn no_changes_maps_to_the_exact_422_body() {
+        let err: ApiError = AppError::NoChanges.into();
+        assert_eq!(err.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let body = body_string(err.into_response()).await;
+        assert_eq!(
+            body,
+            r#"{"error":{"code":"validation_error","message":"At least one updatable field must be provided","details":[]}}"#
         );
     }
 

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE tasks SET title = COALESCE($2, title), description = CASE WHEN $3 THEN $4 ELSE description END, status = COALESCE($5, status), priority = COALESCE($6, priority), due_date = CASE WHEN $7 THEN $8 ELSE due_date END, updated_at = now() WHERE id = $1 RETURNING id, title, description, status, priority, due_date, created_at, updated_at",
+  "query": "UPDATE tasks SET title = COALESCE($2, title), description = CASE WHEN $3 THEN $4 ELSE description END, status = COALESCE($5, status), priority = COALESCE($6, priority), due_date = CASE WHEN $7 THEN $8 ELSE due_date END, updated_at = GREATEST(now(), updated_at + interval '1 millisecond') WHERE id = $1 RETURNING id, title, description, status, priority, due_date, created_at, updated_at",
   "describe": {
     "columns": [
       {
@@ -115,5 +115,5 @@
       false
     ]
   },
-  "hash": "cd709a0790863ab2a583d7753525e058f5256300544a3dd416191387b34c2028"
+  "hash": "8d3e301712f3e2f816d55fa35e6aa382f1afe88eae71806764242ca163b6d0dd"
 }

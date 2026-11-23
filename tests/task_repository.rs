@@ -302,6 +302,34 @@ async fn update_refreshes_updated_at_only(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn back_to_back_updates_strictly_increase_updated_at(pool: PgPool) {
+    let repo = PgTaskRepository::new(pool);
+    let original = seed(&repo, &minimal("t")).await;
+    let mut previous = original.updated_at();
+    for status in [TaskStatus::InProgress, TaskStatus::Done, TaskStatus::Done] {
+        let updated = repo
+            .update(
+                original.id(),
+                &TaskPatch {
+                    status: Some(status),
+                    ..TaskPatch::default()
+                },
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(
+            updated.updated_at() - previous >= chrono::Duration::milliseconds(1),
+            "{} then {}",
+            previous,
+            updated.updated_at()
+        );
+        assert_eq!(updated.created_at(), original.created_at());
+        previous = updated.updated_at();
+    }
+}
+
+#[sqlx::test]
 async fn update_unknown_id_returns_none(pool: PgPool) {
     let repo = PgTaskRepository::new(pool);
     let result = repo

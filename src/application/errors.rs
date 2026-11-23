@@ -12,6 +12,9 @@ pub enum AppError {
     /// One or more input fields are invalid.
     #[error("validation failed")]
     Validation(Vec<FieldError>),
+    /// An update named no updatable field.
+    #[error("no updatable field provided")]
+    NoChanges,
     /// The requested resource does not exist.
     #[error("not found: {0}")]
     NotFound(String),
@@ -27,6 +30,7 @@ impl From<DomainError> for AppError {
     fn from(err: DomainError) -> Self {
         match err {
             DomainError::Validation(fields) => AppError::Validation(fields),
+            DomainError::NoChanges => AppError::NoChanges,
         }
     }
 }
@@ -43,5 +47,11 @@ mod tests {
             AppError::Validation(fields) => assert_eq!(fields.len(), 1),
             other => panic!("unexpected variant: {other:?}"),
         }
+    }
+
+    #[test]
+    fn domain_no_changes_converts_to_app_no_changes() {
+        let err: AppError = DomainError::NoChanges.into();
+        assert!(matches!(err, AppError::NoChanges), "{err:?}");
     }
 }

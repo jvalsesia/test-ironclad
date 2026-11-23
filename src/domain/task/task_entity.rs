@@ -19,6 +19,13 @@ impl TaskId {
     }
 }
 
+/// Canonical text form: lowercase hyphenated UUID.
+impl std::fmt::Display for TaskId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.hyphenated().fmt(f)
+    }
+}
+
 /// A stored task. Only built from persisted parts; creation input goes
 /// through `NewTask`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,5 +97,19 @@ impl Task {
 
     pub fn updated_at(&self) -> DateTime<Utc> {
         self.updated_at
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn task_id_displays_as_lowercase_hyphenated_uuid() {
+        let uuid = Uuid::parse_str("0B7D2C1E-5F3A-4E8B-9C6D-7A1F2E3D4C5B").unwrap();
+        assert_eq!(
+            TaskId::new(uuid).to_string(),
+            "0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5b"
+        );
     }
 }

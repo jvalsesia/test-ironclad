@@ -159,6 +159,104 @@ Errors: `400 invalid_query` (one `details` entry per invalid parameter, in the
 order `status`, `priority`, `sort`, `order`, `limit`, `offset`),
 `503 service_unavailable`.
 
+### `GET /tasks/{id}`
+
+Returns one task. `{id}` must be a UUID in the 36-character hyphenated form
+(any version, hex case-insensitive); it is checked before the database is
+touched.
+
+```bash
+curl -i localhost:8080/tasks/3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60
+```
+
+Response `200` with the same representation as `POST /tasks`:
+
+```json
+{"id":"3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60","title":"Write PRD","description":null,"status":"todo","priority":"high","due_date":"2026-12-01","created_at":"2026-11-21T18:11:00.123Z","updated_at":"2026-11-21T18:11:00.123Z"}
+```
+
+Malformed id (simple, braced or URN UUID forms included), `400`:
+
+```json
+{"error":{"code":"invalid_id","message":"Task id must be a valid UUID","details":[]}}
+```
+
+Unknown id, `404` (the id is reported in lowercase):
+
+```json
+{"error":{"code":"not_found","message":"Task 0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5b not found","details":[]}}
+```
+
+Other errors: `503 service_unavailable`, `500 internal_error`.
+
+### `PATCH /tasks/{id}`
+
+Partially updates a task and returns the full task (`200`, no `Location`).
+`{id}` must be a 36-character hyphenated UUID. Body (`Content-Type:
+application/json`, at most 65,536 bytes) is a JSON object with at least one
+of these fields:
+
+| Field | Absent | `null` | Value |
+|-------|--------|--------|-------|
+| `title` | unchanged | `422 cannot be null` | trimmed, 1-200 characters |
+| `description` | unchanged | cleared | trimmed, at most 5000 characters; blank clears |
+| `status` | unchanged | `422 cannot be null` | `todo`, `in_progress`, `done` |
+| `priority` | unchanged | `422 cannot be null` | `low`, `medium`, `high` |
+| `due_date` | unchanged | cleared | `YYYY-MM-DD`, a real calendar date |
+
+Unknown fields (including `id`, `created_at`, `updated_at`) are ignored.
+Every successful update moves `updated_at` forward by at least one
+millisecond (even when values do not change); `created_at` never changes.
+Nothing is written on any error.
+
+```bash
+curl -i -X PATCH localhost:8080/tasks/3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60 \
+  -H 'Content-Type: application/json' -d '{"status":"done"}'
+# 200 {"id":"3f2b…","title":"Write PRD",…,"status":"done",…,"updated_at":"2026-11-23T09:30:12.456Z"}
+
+curl -X PATCH localhost:8080/tasks/3f2b… -H 'Content-Type: application/json' \
+  -d '{"description":null,"due_date":null}'
+# 200 with "description":null and "due_date":null
+
+curl -X PATCH localhost:8080/tasks/3f2b… -H 'Content-Type: application/json' -d '{}'
+# 422 {"error":{"code":"validation_error","message":"At least one updatable field must be provided","details":[]}}
+
+curl -X PATCH localhost:8080/tasks/3f2b… -H 'Content-Type: application/json' -d '{"title":null}'
+# 422 {"error":{"code":"validation_error","message":"Request validation failed","details":[{"field":"title","message":"cannot be null"}]}}
+```
+
+Errors are checked in this order: `413 payload_too_large` (declared length),
+`400 invalid_id` (`Task id must be a valid UUID`), `415 unsupported_media_type`
+/ `400 invalid_json` (malformed JSON, non-object body, or a wrongly typed field),
+`422 validation_error`, `404 not_found` (`Task <id> not found`). Database
+unavailability returns `503 service_unavailable`.
+
+### `DELETE /tasks/{id}`
+
+Permanently deletes a task. `{id}` must be a UUID in the 36-character
+hyphenated form (hex case-insensitive). Any request body is ignored.
+
+```bash
+curl -i -X DELETE localhost:8080/tasks/3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60
+```
+
+Response `204 No Content` with an empty body. Deleting the same id again
+returns `404`:
+
+```json
+{"error":{"code":"not_found","message":"Task 3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60 not found","details":[]}}
+```
+
+A malformed id (e.g. `DELETE /tasks/abc`, or the 32-character form without
+hyphens) returns `400` before the database is touched:
+
+```json
+{"error":{"code":"invalid_id","message":"Task id must be a valid UUID","details":[]}}
+```
+
+Other errors: `405 method_not_allowed`, `503 service_unavailable` (the task is
+kept), `500 internal_error`.
+
 ## Health check
 
 `GET /health` runs `SELECT 1` against the database (2 s timeout) on every
