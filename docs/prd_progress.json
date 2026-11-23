@@ -98,13 +98,13 @@
       "dependencies": [
         "F04"
       ],
-      "status": "pending",
+      "status": "done",
       "cycles": 0,
       "failure_reason": null,
-      "report_path": null,
-      "started_at": null,
-      "updated_at": "2026-11-20T21:06:07Z",
-      "completed_at": null
+      "report_path": "docs/F07-update-task/eval-report-2026-11-23T15-26-59Z.md",
+      "started_at": "2026-11-23T15:15:34Z",
+      "updated_at": "2026-11-23T15:31:17Z",
+      "completed_at": "2026-11-23T15:31:17Z"
     },
     "F08": {
       "name": "Delete Task",
