@@ -1,7 +1,5 @@
 //! The persisted task entity.
 
-use std::fmt;
-
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -21,10 +19,10 @@ impl TaskId {
     }
 }
 
-/// Lowercase hyphenated form, e.g. `3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60`.
-impl fmt::Display for TaskId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0.hyphenated(), f)
+/// Canonical text form: lowercase hyphenated UUID.
+impl std::fmt::Display for TaskId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.hyphenated().fmt(f)
     }
 }
 
@@ -107,8 +105,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn task_id_displays_lowercase_hyphenated() {
-        let id = TaskId::new(Uuid::from_u128(0x3F2B6F0E_6D4A_4C8E_9A0F_1B2C3D4E5F60));
-        assert_eq!(id.to_string(), "3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60");
+    fn task_id_displays_as_lowercase_hyphenated_uuid() {
+        let uuid = Uuid::parse_str("0B7D2C1E-5F3A-4E8B-9C6D-7A1F2E3D4C5B").unwrap();
+        assert_eq!(
+            TaskId::new(uuid).to_string(),
+            "0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5b"
+        );
     }
 }

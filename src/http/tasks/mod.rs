@@ -6,7 +6,9 @@ use axum::Router;
 use super::state::AppState;
 
 pub mod create;
+pub mod delete;
 pub mod dto;
+pub mod get;
 pub mod task_id_path;
 pub mod update;
 
@@ -16,5 +18,7 @@ pub use task_id_path::TaskIdPath;
 pub fn routes() -> Router<AppState> {
     Router::new()
         .merge(create::routes())
+        .merge(get::routes())
         .merge(update::routes())
+        .merge(delete::routes())
 }

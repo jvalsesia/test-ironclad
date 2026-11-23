@@ -120,6 +120,36 @@ Response `201` with `Location: /tasks/{id}`:
 Errors: `400 invalid_json`, `413 payload_too_large`, `415 unsupported_media_type`,
 `422 validation_error` (one `details` entry per invalid field), `503 service_unavailable`.
 
+### `GET /tasks/{id}`
+
+Returns one task. `{id}` must be a UUID in the 36-character hyphenated form
+(any version, hex case-insensitive); it is checked before the database is
+touched.
+
+```bash
+curl -i localhost:8080/tasks/3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60
+```
+
+Response `200` with the same representation as `POST /tasks`:
+
+```json
+{"id":"3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60","title":"Write PRD","description":null,"status":"todo","priority":"high","due_date":"2026-12-01","created_at":"2026-11-21T18:11:00.123Z","updated_at":"2026-11-21T18:11:00.123Z"}
+```
+
+Malformed id (simple, braced or URN UUID forms included), `400`:
+
+```json
+{"error":{"code":"invalid_id","message":"Task id must be a valid UUID","details":[]}}
+```
+
+Unknown id, `404` (the id is reported in lowercase):
+
+```json
+{"error":{"code":"not_found","message":"Task 0b7d2c1e-5f3a-4e8b-9c6d-7a1f2e3d4c5b not found","details":[]}}
+```
+
+Other errors: `503 service_unavailable`, `500 internal_error`.
+
 ### `PATCH /tasks/{id}`
 
 Partially updates a task and returns the full task (`200`, no `Location`).
@@ -161,6 +191,32 @@ Errors are checked in this order: `413 payload_too_large` (declared length),
 / `400 invalid_json` (malformed JSON, non-object body, or a wrongly typed field),
 `422 validation_error`, `404 not_found` (`Task <id> not found`). Database
 unavailability returns `503 service_unavailable`.
+
+### `DELETE /tasks/{id}`
+
+Permanently deletes a task. `{id}` must be a UUID in the 36-character
+hyphenated form (hex case-insensitive). Any request body is ignored.
+
+```bash
+curl -i -X DELETE localhost:8080/tasks/3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60
+```
+
+Response `204 No Content` with an empty body. Deleting the same id again
+returns `404`:
+
+```json
+{"error":{"code":"not_found","message":"Task 3f2b6f0e-6d4a-4c8e-9a0f-1b2c3d4e5f60 not found","details":[]}}
+```
+
+A malformed id (e.g. `DELETE /tasks/abc`, or the 32-character form without
+hyphens) returns `400` before the database is touched:
+
+```json
+{"error":{"code":"invalid_id","message":"Task id must be a valid UUID","details":[]}}
+```
+
+Other errors: `405 method_not_allowed`, `503 service_unavailable` (the task is
+kept), `500 internal_error`.
 
 ## Health check
 
