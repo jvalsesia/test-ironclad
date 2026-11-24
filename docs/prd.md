@@ -508,7 +508,7 @@ graph TD
 - [ ] Starting with an unreachable database makes exactly 5 connection attempts and then exits with code 1.
 - [ ] `PORT=70000` aborts startup with exit code 1 and a message naming `PORT`.
 - [ ] After startup, table `tasks` exists with the 8 specified columns, defaults, and indexes on `status`, `priority`, `due_date`, `created_at`.
-- [ ] A direct SQL `INSERT` with `status = 'archived'`, `priority = 'urgent'`, or a 201-character title is rejected by a `CHECK` constraint.
+- [ ] A direct SQL `INSERT` with `status = 'archived'` or `priority = 'urgent'` is rejected by a `CHECK` constraint, and one with a 201-character title is rejected by the `VARCHAR(200)` column type (SQLSTATE `22001`).
 - [ ] `GET /does-not-exist` returns 404 with body `{"error":{"code":"not_found","message":"Route not found","details":[]}}`.
 - [ ] A `POST /tasks` body larger than 64 KB returns 413 `payload_too_large`.
 - [ ] Every non-2xx response in the test suite matches the uniform error body shape.

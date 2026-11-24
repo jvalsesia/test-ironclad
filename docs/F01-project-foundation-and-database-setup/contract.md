@@ -48,7 +48,7 @@ Each gate must pass for the feature to be considered ready.
 | Starting with an unreachable database makes exactly 5 connection attempts and then exits with code 1. | CLI-DBCONNECT-01 |
 | `PORT=70000` aborts startup with exit code 1 and a message naming `PORT`. | CLI-CONFIG-02 |
 | After startup, table `tasks` exists with the 8 specified columns, defaults, and indexes on `status`, `priority`, `due_date`, `created_at`. | DB-SCHEMA-01, DB-SCHEMA-02, DB-SCHEMA-03 |
-| A direct SQL `INSERT` with `status = 'archived'`, `priority = 'urgent'`, or a 201-character title is rejected by a `CHECK` constraint. | DB-CONSTRAINTS-01, DB-CONSTRAINTS-02, DB-CONSTRAINTS-03 |
+| A direct SQL `INSERT` with `status = 'archived'` or `priority = 'urgent'` is rejected by a `CHECK` constraint, and one with a 201-character title is rejected by the `VARCHAR(200)` column type (SQLSTATE `22001`). | DB-CONSTRAINTS-01, DB-CONSTRAINTS-02, DB-CONSTRAINTS-03 |
 | `GET /does-not-exist` returns 404 with body `{"error":{"code":"not_found","message":"Route not found","details":[]}}`. | API-ROUTES-01 |
 | A `POST /tasks` body larger than 64 KB returns 413 `payload_too_large`. | API-LIMITS-01 |
 | Every non-2xx response in the test suite matches the uniform error body shape. | API-ERRORS-01, API-ERRORS-02, API-ERRORS-03, API-ERRORS-04, API-ERRORS-05, API-ERRORS-06, API-ERRORS-07, API-LIMITS-01, API-LIMITS-02, API-LIMITS-04, API-LIMITS-05, API-ROUTES-01, API-ROUTES-02 |

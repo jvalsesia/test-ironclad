@@ -104,5 +104,3 @@ Features are built wave by wave per PRD §8 (Execution Waves) using the ironclad
 Foundation features (F01, F02) must be implemented sequentially before the rest; both are merged. Waves 3 and 4 (F05–F08, F10) are implemented; every PRD feature now exists.
 
 Parallel features (`/ironclad:implement-and-evaluate-tmux`) all edit the same shared files, so expect merge conflicts after the first PR lands: the `**Status:**` line above, `README.md` sections, `.env.example`, `src/application/mod.rs`, `src/http/router.rs` (route merges), `tests/common/mod.rs`, `Cargo.toml` features and `docs/prd_progress.json`. Resolve by keeping both sides, then run the quality gates on the merged tree and merge PRs one at a time. Tell each team to `/exit` after its PR is opened, or the wave never sees it finish.
-
-Open item: the PRD's F01 AC says an over-long title is rejected "by a CHECK constraint", but `VARCHAR(200)` rejects it first (22001). The F01 contract asserts 22001; decide whether to change the column to `TEXT` or reword the AC.
