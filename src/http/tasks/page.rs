@@ -1,18 +1,28 @@
 //! The `GET /tasks` page envelope.
 
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::application::tasks::{TaskPage, TaskQuery};
 
 use super::dto::TaskResponse;
 
 /// `{"items","total","limit","offset"}`, in that field order. `limit` and
-/// `offset` echo the effective values (defaults applied).
-#[derive(Debug, Serialize)]
+/// `offset` echo the effective values (defaults applied). Published in the
+/// OpenAPI document as `TaskPage`.
+#[derive(Debug, Serialize, ToSchema)]
+#[schema(as = TaskPage, description = "One page of tasks")]
 pub struct TaskPageResponse {
+    /// Tasks on this page, in the requested order
     pub items: Vec<TaskResponse>,
+    /// Number of tasks matching the filters, across all pages
+    #[schema(minimum = 0)]
     pub total: i64,
+    /// Effective page size
+    #[schema(minimum = 1, maximum = 100)]
     pub limit: i64,
+    /// Effective number of skipped tasks
+    #[schema(minimum = 0, maximum = 10000)]
     pub offset: i64,
 }
 

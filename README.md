@@ -5,10 +5,11 @@ A small REST service for managing tasks, written in Rust with
 and PostgreSQL 16. Requirements live in [`docs/prd.md`](docs/prd.md); per-feature
 specs, plans and contracts live in `docs/F<ID>-*/`.
 
-This repository currently contains the project foundation (F01): configuration,
-database pool and migrations, the uniform error contract, request limits,
-graceful shutdown and the integration-test harness. Business endpoints arrive
-with later features.
+The service exposes task CRUD (`/tasks`), a health check (`/health`), its
+OpenAPI document (`/openapi.json`) and a Swagger UI (`/docs`), on top of the
+project foundation: configuration, database pool and migrations, the uniform
+error contract, request limits, structured logging, graceful shutdown and the
+integration-test harness.
 
 ## Prerequisites
 
@@ -257,6 +258,33 @@ hyphens) returns `400` before the database is touched:
 Other errors: `405 method_not_allowed`, `503 service_unavailable` (the task is
 kept), `500 internal_error`.
 
+## API documentation
+
+The service documents itself:
+
+- `GET /openapi.json` — the OpenAPI 3.1 document (title `Task API`, version =
+  crate version): the six operations, grouped under the `Tasks` and `Health`
+  tags, with their parameters, constraints, defaults, every documented status
+  code and examples.
+- `GET /docs` — interactive Swagger UI (assets vendored at build time, nothing
+  is fetched from the internet). "Try it out" is enabled and requests go to the
+  same origin that served the page, e.g. <http://localhost:8080/docs>.
+
+Generate a client from the document with any OpenAPI 3.1 generator, for example:
+
+```bash
+curl -s localhost:8080/openapi.json -o openapi.json
+npx @openapitools/openapi-generator-cli generate -i openapi.json -g typescript-fetch -o client/
+```
+
+The document is generated from code (utoipa): handlers carry
+`#[utoipa::path(...)]` and DTOs derive `ToSchema`/`IntoParams`. A new endpoint
+must be an annotated handler registered with `utoipa_axum::routes!` in its
+`routes()` (an `OpenApiRouter`); plain `.route(...)` calls in production HTTP
+code fail `tests/architecture.rs`, and `tests/openapi.rs` pins the exact set of
+documented operations, statuses and schemas. The documentation routes and the
+`/__test/*` routes are not part of the document.
+
 ## Health check
 
 `GET /health` runs `SELECT 1` against the database (2 s timeout) on every
@@ -357,6 +385,7 @@ src/domain          entities, value objects, validation (no axum / sqlx)
 src/application     use cases and ports
 src/infrastructure  sqlx adapters, pool, migrations
 src/http            router, error mapping, extractors, middleware
+src/http/openapi    OpenAPI document root, doc-only schemas, /openapi.json, /docs
 src/config.rs       the only place the environment is read
 src/main.rs         composition root
 migrations/         embedded SQL migrations

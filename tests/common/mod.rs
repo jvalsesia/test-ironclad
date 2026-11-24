@@ -421,3 +421,65 @@ pub async fn stored_task(pool: &PgPool, id: uuid::Uuid) -> Option<StoredTask> {
     .await
     .unwrap()
 }
+
+/// The parsed body of `GET /openapi.json` served by `router`.
+pub async fn openapi_spec(router: &Router) -> serde_json::Value {
+    let reply = send(router, get("/openapi.json")).await;
+    assert_eq!(reply.status, StatusCode::OK, "body: {}", reply.body);
+    reply.json()
+}
+
+/// The value a local `$ref` (`#/a/b/c`) points to inside `spec`.
+pub fn resolve<'a>(spec: &'a serde_json::Value, reference: &str) -> &'a serde_json::Value {
+    let pointer = reference
+        .strip_prefix('#')
+        .unwrap_or_else(|| panic!("not a local reference: {reference}"));
+    spec.pointer(pointer)
+        .unwrap_or_else(|| panic!("unresolved reference: {reference}"))
+}
+
+/// Validates `instance` against `schema` (JSON Schema draft 2020-12), with
+/// every `$ref` resolved inside `spec`. `format` is an annotation only.
+pub fn validate_with_schema(
+    spec: &serde_json::Value,
+    schema: &serde_json::Value,
+    instance: &serde_json::Value,
+) -> Result<(), Vec<String>> {
+    let mut root = spec.clone();
+    let object = root.as_object_mut().expect("spec is a JSON object");
+    object.insert(
+        "$schema".to_owned(),
+        serde_json::json!("https://json-schema.org/draft/2020-12/schema"),
+    );
+    object.insert("allOf".to_owned(), serde_json::json!([schema]));
+    let validator = jsonschema::options()
+        .should_validate_formats(false)
+        .build(&root)
+        .unwrap_or_else(|err| panic!("schema does not compile: {err}"));
+    let errors: Vec<String> = validator
+        .iter_errors(instance)
+        .map(|err| format!("{} at {}", err, err.instance_path))
+        .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+/// Validates `instance` against `#/components/schemas/<name>` of `spec`.
+pub fn validate_against(
+    spec: &serde_json::Value,
+    name: &str,
+    instance: &serde_json::Value,
+) -> Result<(), Vec<String>> {
+    let schema = serde_json::json!({ "$ref": format!("#/components/schemas/{name}") });
+    validate_with_schema(spec, &schema, instance)
+}
+
+/// Asserts that `instance` validates against the named component schema.
+pub fn assert_valid(spec: &serde_json::Value, name: &str, instance: &serde_json::Value) {
+    if let Err(errors) = validate_against(spec, name, instance) {
+        panic!("{instance} does not validate against {name}: {errors:#?}");
+    }
+}

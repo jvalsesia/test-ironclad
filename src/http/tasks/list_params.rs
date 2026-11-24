@@ -12,10 +12,15 @@
 
 use axum::extract::{FromRequestParts, Query};
 use axum::http::request::Parts;
+use utoipa::IntoParams;
 
 use crate::application::tasks::{SortField, SortOrder, TaskQuery};
 use crate::domain::task::{TaskPriority, TaskStatus};
 use crate::http::error::{ApiError, ErrorDetail};
+use crate::http::openapi::schemas::{
+    SortFieldSchema, SortOrderSchema, TaskPrioritySchema, TaskStatusSchema, order_param_schema,
+    sort_param_schema,
+};
 
 pub const MSG_INVALID_QUERY: &str = "Query parameters are invalid";
 pub const MSG_SORT: &str = "must be one of: created_at, updated_at, due_date, priority";
@@ -28,6 +33,32 @@ pub const LIMIT_MIN: i64 = 1;
 pub const LIMIT_MAX: i64 = 100;
 pub const OFFSET_MIN: i64 = 0;
 pub const OFFSET_MAX: i64 = 10_000;
+
+/// Documentation-only description of the `GET /tasks` query parameters.
+/// Parsing is done by [`ListTasksParams`]; a unit test keeps the documented
+/// bounds and defaults equal to the parser's constants.
+#[derive(Debug, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct ListTasksQuery {
+    /// Comma-separated statuses to keep, e.g. `todo,in_progress` (OR within the list)
+    #[param(required = false, style = Form, explode = false)]
+    pub status: Vec<TaskStatusSchema>,
+    /// Comma-separated priorities to keep, e.g. `low,high` (OR within the list)
+    #[param(required = false, style = Form, explode = false)]
+    pub priority: Vec<TaskPrioritySchema>,
+    /// Sort field
+    #[param(required = false, schema_with = sort_param_schema)]
+    pub sort: SortFieldSchema,
+    /// Sort direction
+    #[param(required = false, schema_with = order_param_schema)]
+    pub order: SortOrderSchema,
+    /// Page size
+    #[param(required = false, minimum = 1, maximum = 100, default = 20)]
+    pub limit: i64,
+    /// Number of tasks to skip
+    #[param(required = false, minimum = 0, maximum = 10000, default = 0)]
+    pub offset: i64,
+}
 
 /// The validated list query, with defaults applied.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -419,5 +450,73 @@ mod tests {
             details_of("/tasks?limit=%FF").await,
             one("limit", MSG_LIMIT)
         );
+    }
+
+    /// The documented parameters, keyed by name, as JSON.
+    fn documented_params() -> Vec<(String, serde_json::Value)> {
+        use utoipa::IntoParams;
+        ListTasksQuery::into_params(|| None)
+            .into_iter()
+            .map(|param| {
+                let json = serde_json::to_value(&param).unwrap();
+                (json["name"].as_str().unwrap().to_owned(), json)
+            })
+            .collect()
+    }
+
+    fn documented(name: &str) -> serde_json::Value {
+        documented_params()
+            .into_iter()
+            .find(|(param, _)| param == name)
+            .map(|(_, json)| json)
+            .unwrap()
+    }
+
+    #[test]
+    fn documented_parameters_are_the_parsed_ones() {
+        let names: Vec<String> = documented_params().into_iter().map(|(n, _)| n).collect();
+        assert_eq!(
+            names,
+            ["status", "priority", "sort", "order", "limit", "offset"]
+        );
+        for (name, json) in documented_params() {
+            assert_eq!(json["in"], "query", "{name}");
+            assert_eq!(json["required"], false, "{name}");
+        }
+    }
+
+    #[test]
+    fn documented_bounds_and_defaults_match_the_parser() {
+        let defaults = TaskQuery::default();
+
+        let limit = documented("limit")["schema"].clone();
+        assert_eq!(limit["minimum"], LIMIT_MIN);
+        assert_eq!(limit["maximum"], LIMIT_MAX);
+        assert_eq!(limit["default"], defaults.limit);
+
+        let offset = documented("offset")["schema"].clone();
+        assert_eq!(offset["minimum"], OFFSET_MIN);
+        assert_eq!(offset["maximum"], OFFSET_MAX);
+        assert_eq!(offset["default"], defaults.offset);
+
+        let sort = documented("sort")["schema"].clone();
+        let sort_default = sort["default"].as_str().unwrap();
+        assert_eq!(parse_sort(sort_default), Ok(defaults.sort));
+        assert_eq!(sort["type"], "string");
+
+        let order = documented("order")["schema"].clone();
+        let order_default = order["default"].as_str().unwrap();
+        assert_eq!(parse_order(order_default), Ok(defaults.order));
+        assert_eq!(order["type"], "string");
+    }
+
+    #[test]
+    fn documented_filters_are_comma_separated_arrays() {
+        for name in ["status", "priority"] {
+            let json = documented(name);
+            assert_eq!(json["style"], "form", "{name}");
+            assert_eq!(json["explode"], false, "{name}");
+            assert_eq!(json["schema"]["type"], "array", "{name}");
+        }
     }
 }

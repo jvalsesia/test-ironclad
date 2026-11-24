@@ -37,10 +37,14 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "net
 tower-http = { version = "0.6", features = ["catch-panic"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "std", "json", "env-filter"] }
+utoipa = { version = "5.5", features = ["uuid"] }
+utoipa-axum = "0.2"
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 
 [dev-dependencies]
 futures-util = "0.3"
+jsonschema = { version = "0.30", default-features = false }
 nix = { version = "0.30", features = ["signal"] }
 reqwest = { version = "0.12", default-features = false }
 tower = { version = "0.5", features = ["util"] }
